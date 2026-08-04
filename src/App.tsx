@@ -9,6 +9,7 @@ import { TemplateModal } from './components/modals/TemplateModal'
 import { ValidationModal } from './components/modals/ValidationModal'
 import { SimulationPanel } from './components/modals/SimulationPanel'
 import { HelpModal, type HelpTopic } from './components/modals/HelpModal'
+import { LegalModal, type LegalType } from './components/modals/LegalModal'
 import { useFlowStore } from './store/flowStore'
 import { useUndoRedo } from './hooks/useUndoRedo'
 import { useValidation } from './hooks/useValidation'
@@ -47,6 +48,7 @@ const AppInner: React.FC = () => {
   const [showValidation, setShowValidation] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null)
+  const [legalType, setLegalType] = useState<LegalType | null>(null)
 
   // Hooks
   useUndoRedo()
@@ -85,6 +87,7 @@ const AppInner: React.FC = () => {
         <RightPanel
           canvasRef={canvasRef}
           onTemplateClick={() => setShowTemplate(true)}
+          onOpenLegalModal={(type) => setLegalType(type)}
         />
       </div>
 
@@ -111,6 +114,12 @@ const AppInner: React.FC = () => {
       <HelpModal
         topic={helpTopic}
         onClose={() => setHelpTopic(null)}
+      />
+
+      {/* Legal Modal (Terms of Service / Privacy Policy) */}
+      <LegalModal
+        type={legalType}
+        onClose={() => setLegalType(null)}
       />
     </div>
   )
