@@ -58,12 +58,13 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
               <p>입력된 순서도 및 학생 정보를 외부 네트워크 서버로 송신하는 코드를 배제하고 로컬 브라우저 스크립트 내에서만 작동하도록 안전하게 관리합니다.</p>
             </section>
 
-            <section className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <section>
               <h3 className="font-bold text-sm text-slate-800 mb-1">제7조 (개인정보 보호책임자)</h3>
-              <ul className="space-y-0.5">
-                <li>• <strong>성명:</strong> 김상륜</li>
-                <li>• <strong>소속:</strong> 신방학중학교 (교사)</li>
-                <li>• <strong>연락처:</strong> 02-956-6105</li>
+              <p>본 서비스의 안전한 활용과 관리를 위해 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
+              <ul className="list-disc list-inside mt-1 space-y-0.5 pl-1">
+                <li><strong>성명:</strong> 김상륜</li>
+                <li><strong>소속:</strong> 신방학중학교 (교사)</li>
+                <li><strong>연락처:</strong> 02-956-6105</li>
               </ul>
             </section>
 
