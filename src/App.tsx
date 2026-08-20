@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState, Component } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { Sidebar } from './components/Sidebar'
+import { AlgorithmPanel } from './components/AlgorithmPanel'
 import { Toolbar } from './components/Toolbar'
 import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
@@ -9,6 +10,7 @@ import { TemplateModal } from './components/modals/TemplateModal'
 import { ValidationModal } from './components/modals/ValidationModal'
 import { SimulationPanel } from './components/modals/SimulationPanel'
 import { HelpModal, type HelpTopic } from './components/modals/HelpModal'
+import { LegalModal, type LegalType } from './components/modals/LegalModal'
 import { useFlowStore } from './store/flowStore'
 import { useUndoRedo } from './hooks/useUndoRedo'
 import { useValidation } from './hooks/useValidation'
@@ -22,12 +24,15 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Er
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 32, background: '#FEF2F2', color: '#991B1B', fontFamily: 'monospace' }}>
-          <h2>🚨 렌더링 오류 발생</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{String(this.state.error)}</pre>
-          <button onClick={() => { localStorage.clear(); this.setState({ error: null }) }}
-            style={{ marginTop: 16, padding: '8px 16px', background: '#DC2626', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
-            모두 지우고 다시 시작
+        <div style={{ padding: 32, background: '#FEF2F2', color: '#991B1B', fontFamily: '"Nanum Square Round", sans-serif', textAlign: 'center', marginTop: '20vh' }}>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>🚨 오류가 발생했어요!</h2>
+          <p style={{ fontSize: '14px', marginBottom: '24px' }}>
+            화면을 그리는 도중 예기치 않은 문제가 생겼습니다.<br />
+            아래 버튼을 눌러 초기화하고 다시 시작해 주세요.
+          </p>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }}
+            style={{ padding: '10px 20px', background: '#DC2626', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+            모두 지우고 다시 시작하기
           </button>
         </div>
       )
@@ -47,6 +52,11 @@ const AppInner: React.FC = () => {
   const [showValidation, setShowValidation] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null)
+  const [legalType, setLegalType] = useState<LegalType | null>(null)
+  
+  // Mobile responsive states
+  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [isMobileRightPanelOpen, setMobileRightPanelOpen] = useState(false)
 
   // Hooks
   useUndoRedo()
@@ -70,22 +80,52 @@ const AppInner: React.FC = () => {
   }, [simStatus, startSim, stopSim, resetSimulation])
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas font-sans">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas font-sans relative">
       {/* Top Toolbar */}
       <Toolbar
         onClearClick={() => setShowClear(true)}
         onValidateClick={handleValidate}
         onSimulateClick={handleSimulate}
+        onToggleSidebar={() => {
+          setMobileSidebarOpen(prev => !prev)
+          setMobileRightPanelOpen(false)
+        }}
+        onToggleRightPanel={() => {
+          setMobileRightPanelOpen(prev => !prev)
+          setMobileSidebarOpen(false)
+        }}
       />
 
       {/* Main Layout */}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
+      <div className="flex flex-1 overflow-hidden relative">
+        <AlgorithmPanel />
+        
+        {/* Mobile Sidebar Overlay Background */}
+        {(isMobileSidebarOpen || isMobileRightPanelOpen) && (
+          <div 
+            className="md:hidden absolute inset-0 bg-slate-900/20 z-30 transition-opacity" 
+            onClick={() => {
+              setMobileSidebarOpen(false)
+              setMobileRightPanelOpen(false)
+            }} 
+          />
+        )}
+        
+        {/* Sidebar Wrapper */}
+        <div className={`transition-transform transform md:translate-x-0 absolute md:relative z-40 h-full ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
+          <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
+        </div>
+
         <Canvas canvasRef={canvasRef} />
-        <RightPanel
-          canvasRef={canvasRef}
-          onTemplateClick={() => setShowTemplate(true)}
-        />
+        
+        {/* RightPanel Wrapper */}
+        <div className={`transition-transform transform md:translate-x-0 absolute right-0 md:relative z-40 h-full ${isMobileRightPanelOpen ? 'translate-x-0' : 'translate-x-full md:block'}`}>
+          <RightPanel
+            canvasRef={canvasRef}
+            onTemplateClick={() => setShowTemplate(true)}
+            onOpenLegalModal={(type) => setLegalType(type)}
+          />
+        </div>
       </div>
 
       {/* Modals */}
@@ -111,6 +151,12 @@ const AppInner: React.FC = () => {
       <HelpModal
         topic={helpTopic}
         onClose={() => setHelpTopic(null)}
+      />
+
+      {/* Legal Modal (Terms of Service / Privacy Policy) */}
+      <LegalModal
+        type={legalType}
+        onClose={() => setLegalType(null)}
       />
     </div>
   )

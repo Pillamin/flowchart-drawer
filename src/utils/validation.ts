@@ -1,4 +1,5 @@
 import type { FlowNode, FlowEdge, ValidationResult, ValidationIssue } from '../types'
+import { isStartLabel, isEndLabel } from './graph'
 
 /**
  * 순서도 로직 오류를 검사하는 순수 함수들.
@@ -8,12 +9,8 @@ import type { FlowNode, FlowEdge, ValidationResult, ValidationIssue } from '../t
 function checkStartEnd(nodes: FlowNode[]): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const terminals = nodes.filter(n => n.data.kind === 'terminal')
-  const starts = terminals.filter(n =>
-    n.data.label.trim() === '시작' || n.data.label.toLowerCase().includes('start')
-  )
-  const ends = terminals.filter(n =>
-    n.data.label.trim() === '끝' || n.data.label.toLowerCase().includes('end')
-  )
+  const starts = terminals.filter(n => isStartLabel(n.data.label))
+  const ends = terminals.filter(n => isEndLabel(n.data.label))
 
   if (terminals.length === 0) {
     issues.push({
@@ -26,7 +23,7 @@ function checkStartEnd(nodes: FlowNode[]): ValidationIssue[] {
       issues.push({
         id: 'no-start',
         severity: 'error',
-        message: "텍스트가 '시작'인 단자 도형이 없어요. 시작 도형을 추가하거나, 도형 텍스트를 '시작'으로 바꿔보세요.",
+        message: "시작을 나타내는 단자 도형(예: '시작', 'Start', '출발')이 없어요. 시작 도형을 추가하거나, 도형 텍스트를 수정해보세요.",
         nodeIds: terminals.map(n => n.id),
       })
     } else if (starts.length > 1) {
@@ -41,7 +38,7 @@ function checkStartEnd(nodes: FlowNode[]): ValidationIssue[] {
       issues.push({
         id: 'no-end',
         severity: 'error',
-        message: "텍스트가 '끝'인 단자 도형이 없어요. 끝 도형을 추가하거나, 도형 텍스트를 '끝'으로 바꿔보세요.",
+        message: "끝을 나타내는 단자 도형(예: '끝', '종료', 'End', 'Stop')이 없어요. 끝 도형을 추가하거나, 도형 텍스트를 수정해보세요.",
         nodeIds: terminals.map(n => n.id),
       })
     }
@@ -112,6 +109,26 @@ function checkEmptyLabels(nodes: FlowNode[]): ValidationIssue[] {
   return issues
 }
 
+function checkMultipleOutgoing(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const nonDecisions = nodes.filter(
+    n => n.data.kind !== 'decision' && n.type !== 'anchor' && n.type !== 'edge-node'
+  )
+
+  nonDecisions.forEach(node => {
+    const outgoing = edges.filter(e => e.source === node.id)
+    if (outgoing.length > 1) {
+      issues.push({
+        id: `multiple-outgoing-${node.id}`,
+        severity: 'error',
+        message: `"${node.data.label || '도형'}"에서 화살표가 ${outgoing.length}개 출발해요. 판단 도형만 화살표를 여러 개 낼 수 있어요!`,
+        nodeIds: [node.id],
+      })
+    }
+  })
+  return issues
+}
+
 // ─── Main Validation Entry Point ─────────────────────────────────────────────────
 export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationResult {
   // anchor/edge-node를 제외한 실제 노드만 체크
@@ -131,6 +148,7 @@ export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationRe
     ...checkStartEnd(nodes),
     ...checkIsolatedNodes(nodes, edges),
     ...checkDecisionBranches(nodes, edges),
+    ...checkMultipleOutgoing(nodes, edges),
     ...checkEmptyLabels(nodes),
   ]
 

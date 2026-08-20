@@ -19,6 +19,7 @@ import { edgeTypes } from '../edges'
 import { OnboardingGuide } from './OnboardingGuide'
 import { TrashBin } from './TrashBin'
 import { NODE_CONFIGS, SNAP_GRID } from '../../constants/nodeConfig'
+import { isStartLabel } from '../../utils/graph'
 import type { NodeKind, FlowNode } from '../../types'
 
 interface CanvasProps {
@@ -43,7 +44,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
   const {
     nodes, edges,
     onNodesChange, onEdgesChange, onConnect, onReconnect, connectAnchorToNode,
-    addNode, removeNode, removeEdge, deleteSelectedElements,
+    addNode, removeNode, removeEdge, deleteSelectedElements, setIsDraggingEdgeEndpoint,
   } = useFlowStore()
 
   const [isOverTrash, setIsOverTrash] = useState(false)
@@ -54,6 +55,15 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
   const { screenToFlowPosition } = useReactFlow()
   const isEmpty = nodes.length === 0
 
+  // 모든 기존 엣지들의 타입을 'labeled'로 강제 마이그레이션 (과거에 생성된 straight, smoothstep 변환)
+  React.useEffect(() => {
+    const hasOldEdgeTypes = edges.some(e => e.type !== 'labeled')
+    if (hasOldEdgeTypes) {
+      useFlowStore.setState(s => ({
+        edges: s.edges.map(e => ({ ...e, type: 'labeled' }))
+      }))
+    }
+  }, [edges])
 
   // 드래그 오버 허용
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -127,7 +137,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     const config = NODE_CONFIGS[kind]
 
     // 시작 도형이 이미 있으면 새 terminal 라벨을 '끝'으로 자동 변경
-    const hasStart = nodes.some(n => n.data.kind === 'terminal' && n.data.label === '시작')
+    const hasStart = nodes.some(n => n.data.kind === 'terminal' && isStartLabel(n.data.label))
     const defaultLabel = (kind === 'terminal' && hasStart) ? '끝' : config.defaultText
 
     const width = config.width || 140
@@ -208,6 +218,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     const info = connectingInfoRef.current
     connectingInfoRef.current = null
     setIsConnecting(false)
+    setIsDraggingEdgeEndpoint(false)
 
     // ① onReconnect(성공 콜백)이 이미 실행된 경우 → 이중처리 방지
     if (reconnectFiredRef.current) {
@@ -407,12 +418,13 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
       originalEdgeId: edge.id,
       isSourceMoving,
     }
-  }, [screenToFlowPosition])
+    // 흐름선 드래그 중 모든 도형 포트 표시
+    setIsDraggingEdgeEndpoint(true)
+  }, [screenToFlowPosition, setIsDraggingEdgeEndpoint])
 
   const onReconnectEnd = useCallback((_event: MouseEvent | TouchEvent, _edge: Parameters<typeof handleReconnect>[0]) => {
-    // onConnectEnd 가 먼저 상태를 처리하므로 여기선 isConnecting만 정리
-    setIsConnecting(false)
-  }, [])
+    setIsDraggingEdgeEndpoint(false)
+  }, [setIsDraggingEdgeEndpoint])
 
   // 휴지통 오버랩 체크 함수
   const checkIsOverTrash = useCallback((e: React.MouseEvent) => {
@@ -426,6 +438,13 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
       e.clientY <= rect.bottom
     )
   }, [])
+
+  // 노드 드래그 시작 시 흐름선 끝점이면 즉시 핸들 표시
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: FlowNode) => {
+    if (node.type === 'anchor' || node.type === 'edge-node') {
+      setIsDraggingEdgeEndpoint(true)
+    }
+  }, [setIsDraggingEdgeEndpoint])
 
   // 노드 드래그 중 휴지통 위인지 감지
   const onNodeDrag = useCallback((event: React.MouseEvent) => {
@@ -444,6 +463,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
 
     // 2. 흐름선 끝점 노드인 경우 일반 도형 근처에 오면 해당 포트로 자동 Snap 연결
     if (node.type === 'anchor' || node.type === 'edge-node') {
+      setIsDraggingEdgeEndpoint(false)
       const dropPos = node.position
 
       const targetShapeNode = findNearbyShape(dropPos, node.id)
@@ -453,8 +473,10 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
         // 앵커 노드를 지우고 실제 도형으로 엣지 연결 전환
         connectAnchorToNode(node.id, targetShapeNode.id, closestPort.id)
       }
+    } else {
+      setIsDraggingEdgeEndpoint(false)
     }
-  }, [checkIsOverTrash, removeNode, findNearbyShape, findClosestPort, connectAnchorToNode])
+  }, [checkIsOverTrash, removeNode, findNearbyShape, findClosestPort, connectAnchorToNode, setIsDraggingEdgeEndpoint])
 
   return (
     <div
@@ -479,6 +501,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
         reconnectRadius={30}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        onNodeDragStart={onNodeDragStart as unknown as OnNodeDrag<FlowNode>}
         onNodeDrag={onNodeDrag as unknown as OnNodeDrag<FlowNode>}
         onNodeDragStop={onNodeDragStop as unknown as OnNodeDrag<FlowNode>}
         nodeTypes={nodeTypes}
@@ -516,6 +539,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
           showInteractive
         />
         <MiniMap
+          className="hidden md:block"
           position="top-right"
           style={{ top: 16, right: 16, borderRadius: 10, overflow: 'hidden' }}
           nodeColor={(n) => {

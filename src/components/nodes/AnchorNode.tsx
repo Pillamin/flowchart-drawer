@@ -20,6 +20,7 @@ export const AnchorNode: React.FC<NodeProps> = memo(({ selected }) => {
       className={`w-4 h-4 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing transition-all flex items-center justify-center ${
         selected ? 'bg-blue-600 ring-2 ring-blue-300' : 'bg-slate-600 hover:bg-blue-500'
       }`}
+      style={{ zIndex: 9999 }}
       title="드래그해서 위치 이동, 휴지통으로 삭제, 또는 다른 도형에 연결"
     >
       <div className="w-1.5 h-1.5 bg-white rounded-full opacity-90" />

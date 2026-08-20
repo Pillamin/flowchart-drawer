@@ -55,8 +55,8 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
         }}
       />
       <g className="edge-hover-effect">
-        {/* 흐름선 끝점 시각적 효과 (CSS로 Hover/Select 시에만 노출) */}
-        <g className={`edge-endpoints ${selected ? 'visible' : ''}`} style={{ opacity: selected ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+        {/* 흐름선 끝점 시각적 효과 — hover 시 CSS로, selected 시 클래스로 노출 (규칙 2) */}
+        <g className={`edge-endpoints ${selected ? 'visible' : ''}`} style={{ transition: 'opacity 0.2s', pointerEvents: 'none' }}>
           <circle cx={sourceX} cy={sourceY} r={8} fill="#334155" stroke="#FFFFFF" strokeWidth={2} />
           <circle cx={sourceX} cy={sourceY} r={3} fill="#FFFFFF" />
           <circle cx={targetX} cy={targetY} r={8} fill="#334155" stroke="#FFFFFF" strokeWidth={2} />
@@ -66,20 +66,27 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
 
       <EdgeLabelRenderer>
         {/* 1. 판단 노드 전용 예/아니오 라벨 */}
-        {label && isDecisionEdge && (
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 16}px)`,
-              pointerEvents: 'all',
-            }}
-            className="nodrag nopan select-none"
-          >
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border bg-purple-50 border-purple-300 text-purple-800">
-              {String(label)}
-            </span>
-          </div>
-        )}
+        {label && isDecisionEdge && (() => {
+          const labelStr = String(label)
+          const isYes = labelStr.includes('참') || labelStr.includes('예')
+          const colorClass = isYes
+            ? 'bg-emerald-50 border-emerald-400 text-emerald-800'
+            : 'bg-rose-50 border-rose-400 text-rose-800'
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 16}px)`,
+                pointerEvents: 'all',
+              }}
+              className="nodrag nopan select-none"
+            >
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border ${colorClass}`}>
+                {labelStr}
+              </span>
+            </div>
+          )
+        })()}
 
         {/* 2. 흐름선을 한 번 클릭하면 나타나는 작고 예쁜 빨간색 삭제 버튼 */}
         {selected && (
@@ -103,7 +110,11 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
       </EdgeLabelRenderer>
       
       <style>{`
-        .react-flow__edge:hover .edge-endpoints {
+        .edge-endpoints {
+          opacity: 0;
+        }
+        .react-flow__edge:hover .edge-endpoints,
+        .edge-endpoints.visible {
           opacity: 1 !important;
         }
         .react-flow__edge:hover .react-flow__edge-path {

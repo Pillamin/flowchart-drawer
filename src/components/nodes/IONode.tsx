@@ -90,31 +90,47 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
 
       {/* 텍스트 영역 — 단일 textarea 구조로 들뜸 완전 방지 */}
       <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"
         style={{ paddingLeft: SKEW + 8, paddingRight: SKEW + 8 }}
       >
-        <textarea
-          ref={inputRef}
-          value={editing ? draft : data.label}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={onKeyDown}
-          readOnly={!editing}
-          tabIndex={editing ? 0 : -1}
-          className={`w-full bg-transparent text-center text-sm font-bold resize-none outline-none border-none p-0 m-0 leading-snug overflow-hidden ${
-            editing ? 'select-text pointer-events-auto cursor-text' : 'select-none pointer-events-none cursor-grab'
-          }`}
-          style={{
-            color: config.colors.text,
-            fontFamily: '"Nanum Square Round", sans-serif',
-            height: '1.4em',
-            maxHeight: '2.8em',
-          }}
-        />
+        {editing ? (
+          <textarea
+            ref={inputRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={onKeyDown}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 leading-tight select-text pointer-events-auto cursor-text ${
+              draft.length > 22 ? 'text-[11px]' : draft.length > 13 ? 'text-xs' : 'text-sm'
+            }`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+            autoFocus
+          />
+        ) : (
+          <div
+            className={`w-full text-center font-bold leading-tight select-none cursor-grab flex items-center justify-center ${
+              data.label.length > 22 ? 'text-[11px]' : data.label.length > 13 ? 'text-xs' : 'text-sm'
+            }`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {data.label}
+          </div>
+        )}
       </div>
 
       {/* 표준 공통 연결점 사용 (도형 전체의 정중앙에 배치하여 굴곡 없이 직선 연결) */}
       <StandardNodeHandles
+        nodeId={id}
         isHovered={isHovered}
         selected={selected}
         offsets={{

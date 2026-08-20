@@ -1,7 +1,10 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
 
+import { useFlowStore } from '../../store/flowStore'
+
 interface NodeHandlesProps {
+  nodeId: string
   isHovered?: boolean
   selected?: boolean
   offsets?: {
@@ -19,24 +22,48 @@ interface NodeHandlesProps {
  * - 노드를 드래그하면 흐름선 생성
  */
 export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
+  nodeId,
   isHovered = false,
   selected = false,
   offsets,
 }) => {
-  const isVisible = isHovered || selected
+  const isDraggingEdgeEndpoint = useFlowStore(s => s.isDraggingEdgeEndpoint)
+  const isVisible = isHovered || selected || isDraggingEdgeEndpoint
+  
+  // Find which handle positions (top, bottom, left, right) are currently connected
+  const edges = useFlowStore(s => s.edges)
 
-  const baseStyle: React.CSSProperties = {
-    width: 10,
-    height: 10,
-    backgroundColor: selected ? '#3B82F6' : '#64748B',
-    border: '2px solid #FFFFFF',
-    opacity: isVisible ? 1 : 0,
-    pointerEvents: 'all',
-    zIndex: 20,
+  const connectedPositions = new Set<string>()
+  edges.forEach(e => {
+    if (e.source === nodeId && e.sourceHandle) connectedPositions.add(e.sourceHandle.replace('target-', ''))
+    if (e.target === nodeId && e.targetHandle) connectedPositions.add(e.targetHandle.replace('target-', ''))
+  })
+
+  const isPositionConnected = (handleId: string) => connectedPositions.has(handleId.replace('target-', ''))
+
+  const getStyle = (handleId: string): React.CSSProperties => {
+    const connected = isPositionConnected(handleId)
+    // 흐름선 끝점 드래그 중엔 연결 여부와 무관하게 모든 포트 표시
+    const forceShow = isDraggingEdgeEndpoint
+    return {
+      width: 10,
+      height: 10,
+      backgroundColor: selected ? '#3B82F6' : isDraggingEdgeEndpoint ? '#10B981' : '#64748B',
+      border: '2px solid #FFFFFF',
+      opacity: (isVisible && (forceShow || !connected)) ? 1 : 0,
+      visibility: (!forceShow && connected) ? 'hidden' : 'visible',
+      zIndex: 20,
+    }
   }
 
   // Handle의 기본 CSS 클래스
-  const handleClassName = "w-2.5 h-2.5 !min-w-[10px] !min-h-[10px] relative"
+  // 흐름선 끝점 드래그 중엔 연결된 포트도 클릭 가능하게
+  // Hit Area 확장을 위해 before: 요소 사용 (44x44px 영역 확보)
+  const getClassName = (handleId: string) =>
+    `w-2.5 h-2.5 !min-w-[10px] !min-h-[10px] relative before:content-[''] before:absolute before:-inset-4 before:bg-transparent ${(isPositionConnected(handleId) && !isDraggingEdgeEndpoint) ? '!pointer-events-none' : ''}`
+
+  // 드래그 중엔 연결 여부와 무관하게 모든 포트에 연결 허용
+  const isConn = (handleId: string) => isDraggingEdgeEndpoint ? true : !isPositionConnected(handleId)
 
   return (
     <>
@@ -45,29 +72,33 @@ export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
         id="target-top"
         type="target"
         position={Position.Top}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.top?.left !== undefined ? { left: offsets.top.left } : {}) }}
+        className={getClassName('target-top')}
+        isConnectable={isConn('target-top')}
+        style={{ ...getStyle('target-top'), ...(offsets?.top?.left !== undefined ? { left: offsets.top.left } : {}) }}
       />
       <Handle
         id="target-bottom"
         type="target"
         position={Position.Bottom}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.bottom?.left !== undefined ? { left: offsets.bottom.left } : {}) }}
+        className={getClassName('target-bottom')}
+        isConnectable={isConn('target-bottom')}
+        style={{ ...getStyle('target-bottom'), ...(offsets?.bottom?.left !== undefined ? { left: offsets.bottom.left } : {}) }}
       />
       <Handle
         id="target-left"
         type="target"
         position={Position.Left}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.left?.left !== undefined ? { left: offsets.left.left } : {}) }}
+        className={getClassName('target-left')}
+        isConnectable={isConn('target-left')}
+        style={{ ...getStyle('target-left'), ...(offsets?.left?.left !== undefined ? { left: offsets.left.left } : {}) }}
       />
       <Handle
         id="target-right"
         type="target"
         position={Position.Right}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.right?.right !== undefined ? { right: offsets.right.right } : offsets?.right?.left !== undefined ? { left: offsets.right.left } : {}) }}
+        className={getClassName('target-right')}
+        isConnectable={isConn('target-right')}
+        style={{ ...getStyle('target-right'), ...(offsets?.right?.right !== undefined ? { right: offsets.right.right } : offsets?.right?.left !== undefined ? { left: offsets.right.left } : {}) }}
       />
 
       {/* Source (출발 포트) */}
@@ -75,29 +106,33 @@ export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
         id="top"
         type="source"
         position={Position.Top}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.top?.left !== undefined ? { left: offsets.top.left } : {}) }}
+        className={getClassName('top')}
+        isConnectable={isConn('top')}
+        style={{ ...getStyle('top'), ...(offsets?.top?.left !== undefined ? { left: offsets.top.left } : {}) }}
       />
       <Handle
         id="bottom"
         type="source"
         position={Position.Bottom}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.bottom?.left !== undefined ? { left: offsets.bottom.left } : {}) }}
+        className={getClassName('bottom')}
+        isConnectable={isConn('bottom')}
+        style={{ ...getStyle('bottom'), ...(offsets?.bottom?.left !== undefined ? { left: offsets.bottom.left } : {}) }}
       />
       <Handle
         id="left"
         type="source"
         position={Position.Left}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.left?.left !== undefined ? { left: offsets.left.left } : {}) }}
+        className={getClassName('left')}
+        isConnectable={isConn('left')}
+        style={{ ...getStyle('left'), ...(offsets?.left?.left !== undefined ? { left: offsets.left.left } : {}) }}
       />
       <Handle
         id="right"
         type="source"
         position={Position.Right}
-        className={handleClassName}
-        style={{ ...baseStyle, ...(offsets?.right?.right !== undefined ? { right: offsets.right.right } : offsets?.right?.left !== undefined ? { left: offsets.right.left } : {}) }}
+        className={getClassName('right')}
+        isConnectable={isConn('right')}
+        style={{ ...getStyle('right'), ...(offsets?.right?.right !== undefined ? { right: offsets.right.right } : offsets?.right?.left !== undefined ? { left: offsets.right.left } : {}) }}
       />
     </>
   )

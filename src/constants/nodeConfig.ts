@@ -24,8 +24,8 @@ export const NODE_CONFIGS: Record<NodeKind, NodeConfig> = {
     tooltip: '알고리즘을 시작하고 끝낼 때 사용해요! 순서도에는 반드시 시작과 끝이 하나씩 있어야 해요.',
     shape: '타원 (Oval)',
     colors: { bg: '#D1FAE5', border: '#10B981', text: '#065F46' },
-    width: 140,
-    height: 56,
+    width: 170,
+    height: 60,
   },
   io: {
     kind: 'io',
@@ -34,8 +34,8 @@ export const NODE_CONFIGS: Record<NodeKind, NodeConfig> = {
     tooltip: '데이터를 입력받거나 결과를 화면에 출력할 때 사용해요. 키보드 입력이나 화면 출력 등이 해당돼요!',
     shape: '평행사변형 (Parallelogram)',
     colors: { bg: '#FEF08A', border: '#EAB308', text: '#713F12' },
-    width: 140,
-    height: 56,
+    width: 170,
+    height: 64,
   },
   process: {
     kind: 'process',
@@ -44,8 +44,8 @@ export const NODE_CONFIGS: Record<NodeKind, NodeConfig> = {
     tooltip: '계산하거나 값을 저장하는 등 명령을 처리할 때 사용해요. 변수에 값을 넣거나 더하기·빼기 같은 연산이 해당돼요!',
     shape: '직사각형 (Rectangle)',
     colors: { bg: '#BAE6FD', border: '#0EA5E9', text: '#0C4A6E' },
-    width: 140,
-    height: 56,
+    width: 170,
+    height: 64,
   },
   decision: {
     kind: 'decision',
@@ -54,8 +54,8 @@ export const NODE_CONFIGS: Record<NodeKind, NodeConfig> = {
     tooltip: "조건에 따라 '예(Yes) / 아니오(No)'로 길을 나눌 때 사용해요. 마름모 모양이 특징이에요!",
     shape: '마름모 (Diamond)',
     colors: { bg: '#E9D5FF', border: '#A855F7', text: '#581C87' },
-    width: 140,
-    height: 90,
+    width: 170,
+    height: 104,
   },
 }
 

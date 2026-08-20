@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { useFlowStore } from '../store/flowStore'
-import { findStartNode, findEndNode, getOutgoingEdges } from '../utils/graph'
+import { findStartNode, findEndNode, getOutgoingEdges, isEndLabel } from '../utils/graph'
 import type { FlowEdge } from '../types'
 
 const STEP_DELAY_MS = 800
@@ -68,8 +68,7 @@ export function useSimulation() {
     if (!currentNode) { stop(); return }
 
     // 끝 노드 도달
-    const isEnd = currentNode.data.kind === 'terminal' &&
-      (currentNode.data.label.trim() === '끝' || currentNode.data.label.toLowerCase().includes('end'))
+    const isEnd = currentNode.data.kind === 'terminal' && isEndLabel(currentNode.data.label)
     if (isEnd) {
       updateSimulation({ status: 'finished', stepLog: [...simulation.stepLog, `✅ 끝! 순서도를 성공적으로 완료했어요.`] })
       return
@@ -95,7 +94,7 @@ export function useSimulation() {
       return
     }
 
-    // 단일 경로: 자동 진행
+    // 경로 진행
     const nextEdge = outgoing[0]
     const nextNode = currentNodes.find(n => n.id === nextEdge.target)
     if (!nextNode) { stop(); return }
@@ -112,8 +111,12 @@ export function useSimulation() {
       return
     }
 
+    const multiEdgeWarning = outgoing.length > 1
+      ? ` (⚠️ 나가는 화살표가 ${outgoing.length}개 탐지되어 첫 번째 경로로 진행합니다)`
+      : ''
+
     updateSimulation({
-      stepLog: [...simulation.stepLog, `➡️ "${currentNode.data.label}" → "${nextNode.data.label}"`],
+      stepLog: [...simulation.stepLog, `➡️ "${currentNode.data.label}" → "${nextNode.data.label}"${multiEdgeWarning}`],
     })
     highlightNode(nextNode.id, nextEdge.id)
 
@@ -161,6 +164,7 @@ export function useSimulation() {
 
   /** 판단 노드에서 사용자가 예/아니오 선택 */
   const chooseDecision = useCallback((edge: FlowEdge) => {
+    cleanup()
     const store = useFlowStore.getState()
     const { nodes: currentNodes, simulation } = store
     const nextNode = currentNodes.find(n => n.id === edge.target)
@@ -188,7 +192,7 @@ export function useSimulation() {
     stepTimerRef.current = setTimeout(() => {
       step(nextNode.id)
     }, STEP_DELAY_MS)
-  }, [updateSimulation, highlightNode, step])
+  }, [cleanup, updateSimulation, highlightNode, step])
 
   return { start, stop, chooseDecision }
 }

@@ -60,34 +60,49 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
         />
       </svg>
       <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        style={{ top: '25%', left: '20%', width: '60%', height: '50%' }}
+        className="absolute flex items-center justify-center pointer-events-none overflow-hidden"
+        style={{ top: '16%', left: '12%', width: '76%', height: '68%' }}
       >
-        <textarea
-          ref={inputRef}
-          value={editing ? draft : data.label}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
-            if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
-          }}
-          readOnly={!editing}
-          tabIndex={editing ? 0 : -1}
-          className={`w-full bg-transparent text-center text-[13px] font-bold resize-none outline-none border-none p-0 m-0 leading-snug overflow-hidden ${
-            editing ? 'select-text pointer-events-auto cursor-text' : 'select-none pointer-events-none cursor-grab'
-          }`}
-          style={{
-            color: config.colors.text,
-            fontFamily: '"Nanum Square Round", sans-serif',
-            height: '1.4em',
-            maxHeight: '2.8em',
-          }}
-        />
+        {editing ? (
+          <textarea
+            ref={inputRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
+              if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
+            }}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 leading-tight select-text pointer-events-auto cursor-text ${
+              draft.length > 20 ? 'text-[11px]' : draft.length > 11 ? 'text-xs' : 'text-sm'
+            }`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+            autoFocus
+          />
+        ) : (
+          <div
+            className={`w-full text-center font-bold leading-tight select-none cursor-grab flex items-center justify-center ${
+              data.label.length > 20 ? 'text-[11px]' : data.label.length > 11 ? 'text-xs' : 'text-sm'
+            }`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {data.label}
+          </div>
+        )}
       </div>
 
       {/* 표준 공통 연결점 사용 */}
-      <StandardNodeHandles isHovered={isHovered} selected={selected} />
+      <StandardNodeHandles nodeId={id} isHovered={isHovered} selected={selected} />
 
       {/* 클릭 선택 시 상단에 표시되는 작고 빨간 삭제 버튼 */}
       {selected && (

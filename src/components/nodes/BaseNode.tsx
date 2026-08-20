@@ -25,10 +25,13 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const removeNode = useFlowStore(s => s.removeNode)
   const updateNodeLabel = useFlowStore(s => s.updateNodeLabel)
+  const algorithmSteps = useFlowStore(s => s.algorithmSteps)
+  const setHoveredStepId = useFlowStore(s => s.setHoveredStepId)
 
-  // 시뮬레이션 하이라이트 상태
+  // 시뮬레이션 및 알고리즘 하이라이트 상태
   const isActive = data.isSimActive
   const isVisited = data.isSimVisited
+  const isAlgoHighlighted = data.isAlgorithmHighlighted
 
   useEffect(() => { setDraft(data.label) }, [data.label])
 
@@ -41,18 +44,37 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
 
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    setDraft(data.label) // 더블클릭 시 최신 label 상태 반영
     setEditing(true)
     setTimeout(() => {
       inputRef.current?.select()
     }, 0)
-  }, [])
+  }, [data.label])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
   }, [commitEdit, data.label])
 
-  const borderColor = isActive
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+    const matchingStep = algorithmSteps.find(s => s.nodeId === id)
+    if (matchingStep) {
+      setHoveredStepId(matchingStep.id)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    setHoveredStepId(null)
+  }
+
+  const edges = useFlowStore(s => s.edges)
+  const isConnectedToSelectedEdge = edges.some(e => e.selected && (e.source === id || e.target === id))
+
+  const borderColor = isAlgoHighlighted
+    ? '#2563EB'
+    : isActive
     ? '#FBBF24'
     : isVisited
     ? '#10B981'
@@ -60,15 +82,28 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
     ? '#3B82F6'
     : config.colors.border
 
+  // 텍스트 길이에 따른 폰트 크기 계산 (더 잘 보이는 스케일 적용)
+  const getFontSizeClass = (text: string) => {
+    const len = text.length
+    if (len > 35) return 'text-[9px] leading-tight'
+    if (len > 24) return 'text-[10px] leading-tight'
+    if (len > 15) return 'text-[11px] leading-tight'
+    if (len > 8) return 'text-xs leading-normal'
+    return 'text-sm font-bold'
+  }
+
   return (
     <div
-      className={`relative flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors duration-150 ${className}`}
+      className={`relative flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 ${className} ${isConnectedToSelectedEdge ? 'opacity-90' : ''}`}
       style={{ ...style,
         width: config.width,
         minHeight: config.height,
         background: config.colors.bg,
         border: `2px solid ${borderColor}`,
-        boxShadow: selected
+        pointerEvents: isConnectedToSelectedEdge ? 'none' : 'all',
+        boxShadow: isAlgoHighlighted
+          ? '0 0 0 4px rgba(37, 99, 235, 0.4), 0 0 16px rgba(37, 99, 235, 0.3)'
+          : selected
           ? `0 0 0 3px ${borderColor}44, 0 4px 12px rgba(0,0,0,0.12)`
           : isActive
           ? '0 0 0 4px #FBBF2466, 0 0 20px #FBBF2433'
@@ -78,31 +113,42 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
         transformOrigin: 'center',
       }}
       onDoubleClick={onDoubleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* 표준 공통 연결점 사용 */}
-      <StandardNodeHandles isHovered={isHovered} selected={selected} />
+      <StandardNodeHandles nodeId={id} isHovered={isHovered} selected={selected} />
 
-      <div className="w-full h-full flex items-center justify-center px-3 py-2">
-        <textarea
-          ref={inputRef}
-          value={editing ? draft : data.label}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={onKeyDown}
-          readOnly={!editing}
-          tabIndex={editing ? 0 : -1}
-          className={`w-full bg-transparent text-center text-sm font-bold resize-none outline-none border-none p-0 m-0 leading-snug overflow-hidden flex items-center justify-center ${
-            editing ? 'select-text pointer-events-auto cursor-text' : 'select-none pointer-events-none cursor-grab'
-          }`}
-          style={{
-            color: config.colors.text,
-            fontFamily: '"Nanum Square Round", sans-serif',
-            height: '1.4em',
-            maxHeight: '2.8em',
-          }}
-        />
+      <div className="w-full h-full flex items-center justify-center px-3 py-1 overflow-hidden pointer-events-none">
+        {editing ? (
+          <textarea
+            ref={inputRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={onKeyDown}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+            autoFocus
+          />
+        ) : (
+          <div
+            className={`w-full max-h-full text-center font-bold select-none cursor-grab overflow-hidden line-clamp-3 text-ellipsis ${getFontSizeClass(data.label)}`}
+            style={{
+              color: config.colors.text,
+              fontFamily: '"Nanum Square Round", sans-serif',
+              wordBreak: 'keep-all',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {data.label}
+          </div>
+        )}
       </div>
 
       {/* 클릭 선택 시 상단에 표시되는 작고 빨간 삭제 버튼 */}

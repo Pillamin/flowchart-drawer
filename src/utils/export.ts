@@ -2,31 +2,68 @@ import { toJpeg, toPng } from 'html-to-image'
 import jsPDF from 'jspdf'
 import type { ExportFormat, StudentInfo } from '../types'
 
+import { getNodesBounds, getViewportForBounds } from '@xyflow/react'
+import { useFlowStore } from '../store/flowStore'
+
 const EXPORT_OPTIONS = {
-  quality: 0.95,
+  quality: 1,
   pixelRatio: 2,
   backgroundColor: '#F8FAFC',
 }
 
-/** 캔버스 DOM 요소를 찾아 이미지/PDF로 내보내기 */
 export async function exportFlow(
   format: ExportFormat,
   canvasEl: HTMLElement,
   student: StudentInfo,
 ): Promise<void> {
-  // 학생 정보 워터마크를 위한 임시 요소 추가
+  // 실제 React Flow 요소(viewport)를 찾아서 그 안의 내용물을 내보내기 대상으로 삼습니다.
+  const viewportEl = canvasEl.querySelector('.react-flow__viewport') as HTMLElement
+  if (!viewportEl) return
+
+  // 1. 전체 도형(nodes)의 경계(bounds) 계산
+  const nodes = useFlowStore.getState().nodes
+  const nodesBounds = getNodesBounds(nodes)
+  
+  // 패딩(여백)을 주어 흐름선(예/아니오 라벨 등)이 바깥으로 튀어나가도 잘리지 않도록 설정
+  const padding = 200
+  const imageWidth = nodesBounds.width + padding * 2
+  const imageHeight = nodesBounds.height + padding * 2
+
+  // 2. 전체 노드를 포괄하는 뷰포트(transform) 값 계산 (배율은 1로 고정하여 선명도 유지)
+  const viewport = getViewportForBounds(
+    nodesBounds,
+    imageWidth,
+    imageHeight,
+    0.5,
+    2,
+    padding
+  )
+
+  // html-to-image 에 전달할 옵션에 크기와 transform 강제 적용
+  const styleOptions = {
+    ...EXPORT_OPTIONS,
+    width: imageWidth,
+    height: imageHeight,
+    style: {
+      width: `${imageWidth}px`,
+      height: `${imageHeight}px`,
+      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+    },
+  }
+
+  // 학생 정보 워터마크를 viewportEl에 붙여서 같이 찍히게 합니다.
   const watermark = createWatermark(student)
-  canvasEl.appendChild(watermark)
+  viewportEl.appendChild(watermark)
 
   try {
     if (format === 'png') {
-      const dataUrl = await toPng(canvasEl, EXPORT_OPTIONS)
+      const dataUrl = await toPng(viewportEl, styleOptions)
       downloadDataUrl(dataUrl, getExportFilename(student, 'png'))
     } else if (format === 'jpg') {
-      const dataUrl = await toJpeg(canvasEl, EXPORT_OPTIONS)
+      const dataUrl = await toJpeg(viewportEl, styleOptions)
       downloadDataUrl(dataUrl, getExportFilename(student, 'jpg'))
     } else if (format === 'pdf') {
-      const dataUrl = await toPng(canvasEl, EXPORT_OPTIONS)
+      const dataUrl = await toPng(viewportEl, styleOptions)
       const img = new Image()
       img.src = dataUrl
       await new Promise(res => { img.onload = res })
@@ -40,7 +77,7 @@ export async function exportFlow(
       pdf.save(getExportFilename(student, 'pdf'))
     }
   } finally {
-    canvasEl.removeChild(watermark)
+    viewportEl.removeChild(watermark)
   }
 }
 
