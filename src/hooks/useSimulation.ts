@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useFlowStore } from '../store/flowStore'
 import { findStartNode, findEndNode, getOutgoingEdges, isEndLabel } from '../utils/graph'
+import { validateFlow } from '../utils/validation'
 import type { FlowEdge } from '../types'
 
 const STEP_DELAY_MS = 800
@@ -131,20 +132,29 @@ export function useSimulation() {
     resetSimulation()
     visitCountsRef.current = {}
     const store = useFlowStore.getState()
-    const startNode = findStartNode(store.nodes)
-    const endNode = findEndNode(store.nodes)
 
-    if (!startNode) {
+    // 시뮬레이션 시작 전 순서도 구조 자동 검증 연동
+    const validationResult = validateFlow(store.nodes, store.edges)
+    const errorIssues = validationResult.issues.filter(i => i.severity === 'error')
+
+    if (errorIssues.length > 0) {
       updateSimulation({
         status: 'error',
-        stepLog: ["❌ '시작' 도형을 찾을 수 없어요. 먼저 검사하기를 실행해보세요."],
+        stepLog: [
+          '❌ [검증 실패] 순서도 오류로 인해 시뮬레이션을 시작할 수 없습니다.',
+          ...errorIssues.map(issue => `• ${issue.message}`),
+        ],
       })
       return
     }
-    if (!endNode) {
+
+    const startNode = findStartNode(store.nodes)
+    const endNode = findEndNode(store.nodes)
+
+    if (!startNode || !endNode) {
       updateSimulation({
         status: 'error',
-        stepLog: ["❌ '끝' 도형을 찾을 수 없어요. 먼저 검사하기를 실행해보세요."],
+        stepLog: ["❌ '시작' 또는 '끝' 도형을 찾을 수 없어요. 먼저 검사하기를 실행해보세요."],
       })
       return
     }
