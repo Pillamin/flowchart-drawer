@@ -47,7 +47,6 @@ export const AlgorithmPanel: React.FC = () => {
   const updateAlgorithmStep = useFlowStore(s => s.updateAlgorithmStep)
   const moveStepToBranch = useFlowStore(s => s.moveStepToBranch)
   const moveStepToRoot = useFlowStore(s => s.moveStepToRoot)
-  const updateBranchAlgorithmStep = useFlowStore(s => s.updateBranchAlgorithmStep)
   const updateAlgorithmStepLoopConfig = useFlowStore(s => s.updateAlgorithmStepLoopConfig)
   const removeAlgorithmStep = useFlowStore(s => s.removeAlgorithmStep)
   const moveAlgorithmStep = useFlowStore(s => s.moveAlgorithmStep)
@@ -59,6 +58,49 @@ export const AlgorithmPanel: React.FC = () => {
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+
+  // Panel width state with localStorage persistence
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('algorithm_panel_width')
+      return saved ? Math.max(280, Math.min(window.innerWidth * 0.7, Number(saved))) : 380
+    } catch {
+      return 380
+    }
+  })
+  const [isResizing, setIsResizing] = useState(false)
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    const startX = e.clientX
+    const startWidth = panelWidth
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX
+      const minWidth = 280
+      const maxWidth = Math.max(minWidth, Math.min(window.innerWidth * 0.7, 850))
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta))
+      setPanelWidth(newWidth)
+    }
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      setIsResizing(false)
+      const delta = upEvent.clientX - startX
+      const minWidth = 280
+      const maxWidth = Math.max(minWidth, Math.min(window.innerWidth * 0.7, 850))
+      const finalWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta))
+      try {
+        localStorage.setItem('algorithm_panel_width', String(Math.round(finalWidth)))
+      } catch {}
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
 
   const handleAutoScroll = (clientY: number) => {
     const container = scrollContainerRef.current
@@ -216,13 +258,15 @@ export const AlgorithmPanel: React.FC = () => {
         onDrop={handleDrop}
         className={`group rounded-md px-2.5 py-1.5 text-xs sm:text-sm flex flex-col gap-1 transition-all my-1 ${borderStyle}`}
       >
-        <div className="flex items-center justify-between gap-1.5 w-full opacity-90">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span className="text-slate-400 font-bold text-xs select-none">⋮⋮</span>
-            <span className={`text-xs font-bold border px-1.5 py-0.5 rounded ${kindStyle.bg} ${kindStyle.text} ${kindStyle.border}`}>
-              {kindStyle.label}
-            </span>
-            <span className="flex-1 font-bold text-xs sm:text-sm truncate">
+        <div className="flex items-start justify-between gap-1.5 w-full opacity-90">
+          <div className="flex items-start gap-1.5 min-w-0 flex-1">
+            <span className="text-slate-400 font-bold text-xs select-none mt-0.5">⋮⋮</span>
+            {kindStyle.label ? (
+              <span className={`text-xs font-bold border px-1.5 py-0.5 rounded ${kindStyle.bg} ${kindStyle.text} ${kindStyle.border} mt-0.5`}>
+                {kindStyle.label}
+              </span>
+            ) : null}
+            <span className="flex-1 font-bold text-xs sm:text-sm break-words whitespace-pre-wrap py-0.5">
               {step.text}
             </span>
           </div>
@@ -239,7 +283,6 @@ export const AlgorithmPanel: React.FC = () => {
     parentDecisionId?: string,
     branch?: 'yes' | 'no'
   ) => {
-    const kindStyle = KIND_LABELS[step.kind] || KIND_LABELS.none
     const isHovered = hoveredStepId === step.id
     const isDragging = draggedStepId === step.id
     const currentLocation = isNested && branch ? branch : 'root'
@@ -274,66 +317,57 @@ export const AlgorithmPanel: React.FC = () => {
               : ''
           }`}
         >
-          {/* Single-Line Main Row */}
-          <div className="flex items-center justify-between gap-1.5 w-full cursor-grab active:cursor-grabbing">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {/* Main Row */}
+          <div className="flex items-start justify-between gap-1.5 w-full cursor-grab active:cursor-grabbing">
+            <div className="flex items-start gap-1.5 min-w-0 flex-1">
               {/* Drag Handle Icon */}
-              <span className="text-slate-400 hover:text-slate-600 cursor-grab text-xs select-none font-bold flex-shrink-0">
+              <span className="text-slate-400 hover:text-slate-600 cursor-grab text-xs select-none font-bold flex-shrink-0 mt-0.5">
                 ⋮⋮
               </span>
 
               {/* Index Badge or Bullet */}
               {!isNested ? (
-                <span className="rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center flex-shrink-0 w-5 h-5 text-xs sm:text-sm">
+                <span className="rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center flex-shrink-0 w-5 h-5 text-xs sm:text-sm mt-0.5">
                   {idx + 1}
                 </span>
               ) : (
-                <span className="w-2 h-2 rounded-full bg-slate-300 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-slate-300 flex-shrink-0 mt-2" />
               )}
 
-              {/* Kind Select Tag */}
-              <select
-                value={step.kind || 'none'}
-                onMouseDown={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (isNested && parentDecisionId && branch) {
-                    updateBranchAlgorithmStep(parentDecisionId, branch, step.id, step.text, e.target.value as StepKind)
-                  } else {
-                    updateAlgorithmStep(step.id, step.text, e.target.value as StepKind)
-                  }
-                }}
-                className={`font-bold border rounded-md cursor-pointer flex-shrink-0 text-xs px-2 py-0.5 ${kindStyle.bg} ${kindStyle.text} ${kindStyle.border}`}
-              >
-                <option value="none"></option>
-                <option value="terminal">시작/끝</option>
-                <option value="io">입출력</option>
-                <option value="process">처리</option>
-                <option value="decision">판단(선택)</option>
-                <option value="loop">판단(반복)</option>
-              </select>
-
-              {/* Step Text or Inline Single-Line Input Editor */}
+              {/* Step Text or Inline Auto-resizing Textarea Editor */}
               {editingId === step.id ? (
-                <div className="flex items-center gap-1 flex-1 min-w-0" onMouseDown={(e) => e.stopPropagation()}>
-                  <input
-                    type="text"
+                <div className="flex-1 min-w-0" onMouseDown={(e) => e.stopPropagation()}>
+                  <textarea
+                    ref={(el) => {
+                      if (el) {
+                        el.style.height = 'auto'
+                        el.style.height = `${el.scrollHeight}px`
+                      }
+                    }}
                     value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit(step.id)}
-                    className="flex-1 text-xs sm:text-sm border border-blue-400 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+                    onChange={(e) => {
+                      setEditText(e.target.value)
+                      e.target.style.height = 'auto'
+                      e.target.style.height = `${e.target.scrollHeight}px`
+                    }}
+                    onBlur={() => saveEdit(step.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        saveEdit(step.id)
+                      } else if (e.key === 'Escape') {
+                        setEditingId(null)
+                      }
+                    }}
+                    rows={1}
+                    className="w-full text-xs sm:text-sm border border-blue-400 rounded p-1 outline-none focus:ring-1 focus:ring-blue-500 min-w-0 bg-white leading-relaxed resize-none overflow-hidden font-normal"
                     autoFocus
                   />
-                  <button
-                    onClick={() => saveEdit(step.id)}
-                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded font-medium hover:bg-blue-700 flex-shrink-0"
-                  >
-                    저장
-                  </button>
                 </div>
               ) : (
                 <div
                   onClick={() => startEdit(step.id, step.text)}
-                  className="flex-1 text-slate-700 font-medium break-words leading-snug cursor-pointer hover:text-slate-900 min-w-0 text-xs sm:text-sm"
+                  className="flex-1 text-slate-700 font-medium break-words whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-slate-900 min-w-0 text-xs sm:text-sm py-0.5"
                   title="클릭하여 내용 수정"
                 >
                   {step.text}
@@ -341,20 +375,20 @@ export const AlgorithmPanel: React.FC = () => {
               )}
 
               {step.nodeId && (
-                <span className="text-[10px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded flex-shrink-0" title="순서도 노드와 연결됨">
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded flex-shrink-0 mt-0.5" title="순서도 노드와 연결됨">
                   🔗
                 </span>
               )}
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 flex-shrink-0">
+            <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 flex-shrink-0 mt-0.5">
               {!isNested && (
                 <>
                   <button
                     onClick={() => moveAlgorithmStep(step.id, 'up')}
                     disabled={idx === 0}
-                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs"
+                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs cursor-pointer"
                     title="위로 이동"
                   >
                     ▲
@@ -362,7 +396,7 @@ export const AlgorithmPanel: React.FC = () => {
                   <button
                     onClick={() => moveAlgorithmStep(step.id, 'down')}
                     disabled={idx === algorithmSteps.length - 1}
-                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs"
+                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs cursor-pointer"
                     title="아래로 이동"
                   >
                     ▼
@@ -371,7 +405,7 @@ export const AlgorithmPanel: React.FC = () => {
               )}
               <button
                 onClick={() => removeAlgorithmStep(step.id)}
-                className="p-1 text-red-400 hover:text-red-600 text-xs"
+                className="p-1 text-red-400 hover:text-red-600 text-xs cursor-pointer"
                 title="삭제"
               >
                 🗑
@@ -551,45 +585,52 @@ export const AlgorithmPanel: React.FC = () => {
   }
 
   return (
-    <aside className="w-[380px] h-full bg-white border-r border-slate-200 shadow-md flex flex-col flex-shrink-0 z-10 transition-all duration-300">
+    <aside
+      style={{ width: `${panelWidth}px` }}
+      className={`relative h-full bg-white border-r border-slate-200 shadow-md flex flex-col flex-shrink-0 z-10 ${
+        isResizing ? 'select-none' : ''
+      }`}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📝</span>
-          <div>
-            <h2 className="text-sm font-bold text-slate-800 leading-tight">자연어 알고리즘</h2>
-            <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">단계별 순서 작성</p>
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-lg flex-shrink-0">📝</span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">자연어 알고리즘</h2>
+            {panelWidth >= 330 && (
+              <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5 truncate">단계별 순서 작성</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {/* Undo / Redo Group */}
           <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
             <button
               onClick={undoAlgorithm}
               disabled={pastAlgorithm.length === 0}
-              className="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-1.5 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
               title="되돌리기 (자연어 알고리즘)"
             >
               <span>↩</span>
-              <span>되돌리기</span>
+              {panelWidth >= 360 && <span>되돌리기</span>}
             </button>
             <div className="w-px h-3.5 bg-slate-200 my-auto" />
             <button
               onClick={redoAlgorithm}
               disabled={futureAlgorithm.length === 0}
-              className="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-1.5 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
               title="다시 실행 (자연어 알고리즘)"
             >
               <span>↪</span>
-              <span>다시 실행</span>
+              {panelWidth >= 360 && <span>다시 실행</span>}
             </button>
           </div>
 
           {/* Close Panel Button */}
           <button
             onClick={() => setAlgorithmPanelOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors text-xs"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors text-xs cursor-pointer flex-shrink-0"
             title="패널 닫기"
           >
             ✕
@@ -600,21 +641,38 @@ export const AlgorithmPanel: React.FC = () => {
 
       {/* Add New Root Step Form */}
       <form onSubmit={handleAdd} className="p-2.5 border-b border-slate-200 bg-slate-50/80 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <input
-            type="text"
-            placeholder="새 알고리즘 단계 입력..."
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            className="flex-1 text-xs sm:text-sm border border-slate-300 rounded-md px-2.5 py-1.5 bg-white outline-none focus:border-blue-500"
-          />
-        </div>
+        <textarea
+          ref={(el) => {
+            if (el) {
+              el.style.height = 'auto'
+              el.style.height = `${el.scrollHeight}px`
+            }
+          }}
+          placeholder="동작을 입력하세요."
+          value={newText}
+          onChange={(e) => {
+            setNewText(e.target.value)
+            e.target.style.height = 'auto'
+            e.target.style.height = `${e.target.scrollHeight}px`
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              if (newText.trim()) {
+                addAlgorithmStep(newText, 'none')
+                setNewText('')
+              }
+            }
+          }}
+          rows={1}
+          className="w-full text-xs sm:text-sm border border-slate-300 rounded-md p-2 bg-white outline-none focus:border-blue-500 resize-none overflow-hidden leading-relaxed font-normal"
+        />
         <button
           type="submit"
           disabled={!newText.trim()}
           className="w-full text-xs sm:text-sm bg-blue-600 text-white font-bold py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-40 transition shadow-xs cursor-pointer"
         >
-          + 메인 단계 추가
+          + 단계 추가
         </button>
       </form>
 
@@ -637,6 +695,21 @@ export const AlgorithmPanel: React.FC = () => {
               renderLivePreviewCard(draggedStep, 'root')}
           </>
         )}
+      </div>
+
+      {/* Right Edge Resize Handle */}
+      <div
+        onMouseDown={handleMouseDownResize}
+        className={`absolute top-0 right-0 w-2.5 h-full cursor-col-resize z-20 transition-colors flex items-center justify-center group ${
+          isResizing ? 'bg-blue-500' : 'hover:bg-blue-300/50'
+        }`}
+        title="마우스로 드래그하여 자연어 알고리즘 창 너비를 조절할 수 있습니다"
+      >
+        <div
+          className={`w-0.5 h-8 rounded-full transition-colors ${
+            isResizing ? 'bg-white' : 'bg-slate-300 group-hover:bg-blue-600'
+          }`}
+        />
       </div>
     </aside>
   )
