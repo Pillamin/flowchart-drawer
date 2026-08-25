@@ -40,9 +40,23 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
   const hh = height / 2
   const pts = `${hw},0 ${width},${hh} ${hw},${height} 0,${hh}`
 
+  const getFontSizeClass = (text: string) => {
+    const lines = text.split('\n')
+    const lineCount = lines.length
+    const maxLineLen = Math.max(...lines.map(l => l.length), 0)
+    const totalLen = text.length
+
+    if (totalLen > 35 || lineCount >= 5 || maxLineLen > 16) return 'text-[9.5px] leading-tight font-bold'
+    if (totalLen > 22 || lineCount >= 4 || maxLineLen > 11) return 'text-[11px] leading-tight font-bold'
+    if (totalLen > 12 || lineCount >= 3 || maxLineLen > 8) return 'text-xs leading-snug font-bold'
+    if (totalLen > 5) return 'text-[13.5px] leading-snug font-bold'
+    return 'text-[15px] sm:text-base leading-normal font-extrabold'
+  }
+
   return (
     <div
-      style={{ width, height, position: 'relative' }}
+      className="relative cursor-grab active:cursor-grabbing"
+      style={{ width, height }}
       onDoubleClick={e => { e.stopPropagation(); setEditing(true); setTimeout(() => inputRef.current?.select(), 0) }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -61,7 +75,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
       </svg>
       <div
         className="absolute flex items-center justify-center pointer-events-none overflow-hidden"
-        style={{ top: '16%', left: '12%', width: '76%', height: '68%' }}
+        style={{ top: '12%', left: '10%', width: '80%', height: '76%' }}
       >
         {editing ? (
           <textarea
@@ -70,12 +84,10 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
               if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
             }}
-            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 leading-tight select-text pointer-events-auto cursor-text ${
-              draft.length > 20 ? 'text-[11px]' : draft.length > 11 ? 'text-xs' : 'text-sm'
-            }`}
+            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -86,9 +98,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
           />
         ) : (
           <div
-            className={`w-full text-center font-bold leading-tight select-none cursor-grab flex items-center justify-center ${
-              data.label.length > 20 ? 'text-[11px]' : data.label.length > 11 ? 'text-xs' : 'text-sm'
-            }`}
+            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

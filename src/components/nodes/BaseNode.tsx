@@ -52,7 +52,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
   }, [data.label])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
   }, [commitEdit, data.label])
 
@@ -82,14 +82,18 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
     ? '#3B82F6'
     : config.colors.border
 
-  // 텍스트 길이에 따른 폰트 크기 계산 (더 잘 보이는 스케일 적용)
+  // 텍스트 길이 및 줄바꿈 수에 따른 폰트 크기 계산 (기본 글자는 크고 또렷하게, 내용이 많아지면 단계적 축소)
   const getFontSizeClass = (text: string) => {
-    const len = text.length
-    if (len > 35) return 'text-[9px] leading-tight'
-    if (len > 24) return 'text-[10px] leading-tight'
-    if (len > 15) return 'text-[11px] leading-tight'
-    if (len > 8) return 'text-xs leading-normal'
-    return 'text-sm font-bold'
+    const lines = text.split('\n')
+    const lineCount = lines.length
+    const maxLineLen = Math.max(...lines.map(l => l.length), 0)
+    const totalLen = text.length
+
+    if (totalLen > 40 || lineCount >= 4 || maxLineLen > 18) return 'text-[10px] leading-tight font-bold'
+    if (totalLen > 24 || lineCount >= 3 || maxLineLen > 13) return 'text-[11.5px] leading-tight font-bold'
+    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[13px] leading-snug font-bold'
+    if (totalLen > 5) return 'text-[14.5px] leading-normal font-bold'
+    return 'text-base sm:text-[17px] leading-normal font-extrabold'
   }
 
   return (
@@ -97,7 +101,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
       className={`relative flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 ${className} ${isConnectedToSelectedEdge ? 'opacity-90' : ''}`}
       style={{ ...style,
         width: config.width,
-        minHeight: config.height,
+        height: config.height,
+        maxHeight: config.height,
         background: config.colors.bg,
         border: `2px solid ${borderColor}`,
         pointerEvents: isConnectedToSelectedEdge ? 'none' : 'all',
@@ -119,7 +124,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
       {/* 표준 공통 연결점 사용 */}
       <StandardNodeHandles nodeId={id} isHovered={isHovered} selected={selected} />
 
-      <div className="w-full h-full flex items-center justify-center px-3 py-1 overflow-hidden pointer-events-none">
+      <div className="w-full h-full flex items-center justify-center px-2 py-0.5 overflow-hidden pointer-events-none">
         {editing ? (
           <textarea
             ref={inputRef}
@@ -127,7 +132,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
-            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -138,7 +143,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
           />
         ) : (
           <div
-            className={`w-full max-h-full text-center font-bold select-none cursor-grab overflow-hidden line-clamp-3 text-ellipsis ${getFontSizeClass(data.label)}`}
+            className={`w-full max-h-full text-center font-bold select-none cursor-grab overflow-hidden flex items-center justify-center ${getFontSizeClass(data.label)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

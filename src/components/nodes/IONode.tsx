@@ -38,7 +38,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
   }, [])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
   }, [commitEdit, data.label])
 
@@ -56,6 +56,19 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
   // bottom handle: 중앙 = W/2 - SKEW/2 위치 (시각적 하단 중앙)
   // left handle: 하단 왼쪽 꼭짓점 (x=0, y=H) → 실제 left edge 중간 = x=SKEW/2
   // right handle: 상단 오른쪽 꼭짓점 (x=W, y=0) → 실제 right edge 중간 = x=W-SKEW/2
+
+  const getFontSizeClass = (text: string) => {
+    const lines = text.split('\n')
+    const lineCount = lines.length
+    const maxLineLen = Math.max(...lines.map(l => l.length), 0)
+    const totalLen = text.length
+
+    if (totalLen > 36 || lineCount >= 4 || maxLineLen > 18) return 'text-[10px] leading-tight font-bold'
+    if (totalLen > 22 || lineCount >= 3 || maxLineLen > 12) return 'text-[11.5px] leading-tight font-bold'
+    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[13px] leading-snug font-bold'
+    if (totalLen > 5) return 'text-[14.5px] leading-normal font-bold'
+    return 'text-base sm:text-[17px] leading-normal font-extrabold'
+  }
 
   return (
     <div
@@ -91,7 +104,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
       {/* 텍스트 영역 — 단일 textarea 구조로 들뜸 완전 방지 */}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"
-        style={{ paddingLeft: SKEW + 8, paddingRight: SKEW + 8 }}
+        style={{ paddingLeft: SKEW + 3, paddingRight: SKEW + 3, paddingTop: 2, paddingBottom: 2 }}
       >
         {editing ? (
           <textarea
@@ -100,9 +113,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
-            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 leading-tight select-text pointer-events-auto cursor-text ${
-              draft.length > 22 ? 'text-[11px]' : draft.length > 13 ? 'text-xs' : 'text-sm'
-            }`}
+            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -113,9 +124,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
           />
         ) : (
           <div
-            className={`w-full text-center font-bold leading-tight select-none cursor-grab flex items-center justify-center ${
-              data.label.length > 22 ? 'text-[11px]' : data.label.length > 13 ? 'text-xs' : 'text-sm'
-            }`}
+            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

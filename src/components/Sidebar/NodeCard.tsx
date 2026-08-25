@@ -25,8 +25,8 @@ const SHAPE_PREVIEW: Record<NodeKind, React.ReactNode> = {
     </svg>
   ),
   process: (
-    <div className="w-20 h-9 rounded border-2 flex items-center justify-center text-xs font-bold"
-      style={{ background: '#BAE6FD', borderColor: '#0EA5E9', color: '#0C4A6E', borderRadius: 6 }}>
+    <div className="w-20 h-9 border-2 flex items-center justify-center text-xs font-bold"
+      style={{ background: '#BAE6FD', borderColor: '#0EA5E9', color: '#0C4A6E' }}>
       처리
     </div>
   ),

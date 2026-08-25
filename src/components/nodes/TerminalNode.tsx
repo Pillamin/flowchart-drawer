@@ -8,7 +8,7 @@ import { NODE_CONFIGS } from '../../constants/nodeConfig'
 export const TerminalNode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, data, selected }) => {
   const config = NODE_CONFIGS.terminal
   return (
-    <BaseNode id={id} data={data} selected={selected} className="rounded-full px-5 py-3">
+    <BaseNode id={id} data={data} selected={selected} className="rounded-full px-3 py-1">
       <span className="text-sm font-bold text-center leading-tight" style={{ color: config.colors.text }}>
         {data.label}
       </span>
