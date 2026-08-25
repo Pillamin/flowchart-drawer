@@ -49,6 +49,7 @@ export const AlgorithmPanel: React.FC = () => {
   const moveStepToRoot = useFlowStore(s => s.moveStepToRoot)
   const updateAlgorithmStepLoopConfig = useFlowStore(s => s.updateAlgorithmStepLoopConfig)
   const removeAlgorithmStep = useFlowStore(s => s.removeAlgorithmStep)
+  const clearAlgorithmSteps = useFlowStore(s => s.clearAlgorithmSteps)
   const moveAlgorithmStep = useFlowStore(s => s.moveAlgorithmStep)
   const setHoveredStepId = useFlowStore(s => s.setHoveredStepId)
 
@@ -266,7 +267,10 @@ export const AlgorithmPanel: React.FC = () => {
                 {kindStyle.label}
               </span>
             ) : null}
-            <span className="flex-1 font-bold text-xs sm:text-sm break-words whitespace-pre-wrap py-0.5">
+            <span
+              className="flex-1 font-bold text-xs sm:text-sm whitespace-pre-wrap py-0.5"
+              style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+            >
               {step.text}
             </span>
           </div>
@@ -361,13 +365,15 @@ export const AlgorithmPanel: React.FC = () => {
                     }}
                     rows={1}
                     className="w-full text-xs sm:text-sm border border-blue-400 rounded p-1 outline-none focus:ring-1 focus:ring-blue-500 min-w-0 bg-white leading-relaxed resize-none overflow-hidden font-normal"
+                    style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
                     autoFocus
                   />
                 </div>
               ) : (
                 <div
                   onClick={() => startEdit(step.id, step.text)}
-                  className="flex-1 text-slate-700 font-medium break-words whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-slate-900 min-w-0 text-xs sm:text-sm py-0.5"
+                  className="flex-1 text-slate-700 font-medium whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-slate-900 min-w-0 text-xs sm:text-sm py-0.5"
+                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
                   title="클릭하여 내용 수정"
                 >
                   {step.text}
@@ -592,40 +598,55 @@ export const AlgorithmPanel: React.FC = () => {
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-lg flex-shrink-0">📝</span>
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xl flex-shrink-0">📝</span>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">자연어 알고리즘</h2>
-            {panelWidth >= 330 && (
+            {panelWidth >= 340 && (
               <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5 truncate">단계별 순서 작성</p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Undo / Redo Group */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Undo / Redo Group (Icon only) */}
           <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
             <button
               onClick={undoAlgorithm}
               disabled={pastAlgorithm.length === 0}
-              className="px-1.5 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              className="w-8 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-sm font-bold transition-colors flex items-center justify-center cursor-pointer"
               title="되돌리기 (자연어 알고리즘)"
             >
               <span>↩</span>
-              {panelWidth >= 360 && <span>되돌리기</span>}
             </button>
-            <div className="w-px h-3.5 bg-slate-200 my-auto" />
+            <div className="w-px h-4 bg-slate-200 my-auto" />
             <button
               onClick={redoAlgorithm}
               disabled={futureAlgorithm.length === 0}
-              className="px-1.5 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              className="w-8 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-sm font-bold transition-colors flex items-center justify-center cursor-pointer"
               title="다시 실행 (자연어 알고리즘)"
             >
               <span>↪</span>
-              {panelWidth >= 360 && <span>다시 실행</span>}
             </button>
           </div>
+
+          {/* Clear Algorithm Steps Button */}
+          <button
+            onClick={() => {
+              if (algorithmSteps.length > 0) {
+                if (window.confirm('자연어 알고리즘의 모든 단계를 초기화할까요?')) {
+                  clearAlgorithmSteps()
+                }
+              }
+            }}
+            disabled={algorithmSteps.length === 0}
+            className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-30 disabled:hover:text-slate-600 disabled:hover:bg-white disabled:hover:border-slate-200 rounded-lg transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="자연어 알고리즘 초기화"
+          >
+            <span className="text-xs">🗑</span>
+            <span>초기화</span>
+          </button>
 
           {/* Close Panel Button */}
           <button
@@ -666,6 +687,7 @@ export const AlgorithmPanel: React.FC = () => {
           }}
           rows={1}
           className="w-full text-xs sm:text-sm border border-slate-300 rounded-md p-2 bg-white outline-none focus:border-blue-500 resize-none overflow-hidden leading-relaxed font-normal"
+          style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
         />
         <button
           type="submit"

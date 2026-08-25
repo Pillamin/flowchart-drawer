@@ -77,6 +77,7 @@ interface FlowStore {
   moveStepToBranch: (stepId: string, targetDecisionId: string, targetBranch: 'yes' | 'no', targetIndex?: number) => void
   moveStepToRoot: (stepId: string, targetIndex?: number) => void
   removeAlgorithmStep: (id: string) => void
+  clearAlgorithmSteps: () => void
   moveAlgorithmStep: (id: string, direction: 'up' | 'down') => void
   setHoveredStepId: (id: string | null) => void
   setIsDraggingEdgeEndpoint: (dragging: boolean) => void
@@ -935,6 +936,18 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       algorithmSteps: nextSteps,
       pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
       futureAlgorithm: [],
+    })
+    if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+  },
+
+  clearAlgorithmSteps: () => {
+    const { pastAlgorithm, algorithmSteps } = get()
+    if (!algorithmSteps.length) return
+    set({
+      algorithmSteps: [],
+      pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
+      futureAlgorithm: [],
+      hoveredStepId: null,
     })
     if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
   },

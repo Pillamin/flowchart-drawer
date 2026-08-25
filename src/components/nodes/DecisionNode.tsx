@@ -46,11 +46,11 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
     const maxLineLen = Math.max(...lines.map(l => l.length), 0)
     const totalLen = text.length
 
-    if (totalLen > 35 || lineCount >= 5 || maxLineLen > 16) return 'text-[9.5px] leading-tight font-bold'
-    if (totalLen > 22 || lineCount >= 4 || maxLineLen > 11) return 'text-[11px] leading-tight font-bold'
-    if (totalLen > 12 || lineCount >= 3 || maxLineLen > 8) return 'text-xs leading-snug font-bold'
-    if (totalLen > 5) return 'text-[13.5px] leading-snug font-bold'
-    return 'text-[15px] sm:text-base leading-normal font-extrabold'
+    if (totalLen > 35 || lineCount >= 5 || maxLineLen > 16) return 'text-[10px] leading-tight font-bold'
+    if (totalLen > 22 || lineCount >= 4 || maxLineLen > 11) return 'text-[11.5px] leading-tight font-bold'
+    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 7) return 'text-[14px] leading-tight font-bold'
+    if (totalLen > 6) return 'text-[16.5px] leading-snug font-extrabold'
+    return 'text-[19px] sm:text-[20px] leading-snug font-black tracking-tight'
   }
 
   return (
@@ -75,11 +75,12 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
       </svg>
       <div
         className="absolute flex items-center justify-center pointer-events-none overflow-hidden"
-        style={{ top: '12%', left: '10%', width: '80%', height: '76%' }}
+        style={{ top: '8%', left: '8%', width: '84%', height: '84%' }}
       >
         {editing ? (
           <textarea
             ref={inputRef}
+            rows={Math.max(1, draft.split('\n').length)}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
@@ -87,11 +88,12 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
               if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
             }}
-            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
             autoFocus
@@ -103,6 +105,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
           >

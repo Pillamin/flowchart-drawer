@@ -63,11 +63,11 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
     const maxLineLen = Math.max(...lines.map(l => l.length), 0)
     const totalLen = text.length
 
-    if (totalLen > 36 || lineCount >= 4 || maxLineLen > 18) return 'text-[10px] leading-tight font-bold'
-    if (totalLen > 22 || lineCount >= 3 || maxLineLen > 12) return 'text-[11.5px] leading-tight font-bold'
-    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[13px] leading-snug font-bold'
-    if (totalLen > 5) return 'text-[14.5px] leading-normal font-bold'
-    return 'text-base sm:text-[17px] leading-normal font-extrabold'
+    if (totalLen > 36 || lineCount >= 4 || maxLineLen > 18) return 'text-[11px] leading-tight font-bold'
+    if (totalLen > 22 || lineCount >= 3 || maxLineLen > 12) return 'text-[12.5px] leading-tight font-bold'
+    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[14.5px] leading-tight font-bold'
+    if (totalLen > 6) return 'text-[17px] leading-snug font-extrabold'
+    return 'text-[20px] sm:text-[21px] leading-snug font-black tracking-tight'
   }
 
   return (
@@ -104,20 +104,22 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
       {/* 텍스트 영역 — 단일 textarea 구조로 들뜸 완전 방지 */}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"
-        style={{ paddingLeft: SKEW + 3, paddingRight: SKEW + 3, paddingTop: 2, paddingBottom: 2 }}
+        style={{ paddingLeft: SKEW, paddingRight: SKEW, paddingTop: 1, paddingBottom: 1 }}
       >
         {editing ? (
           <textarea
             ref={inputRef}
+            rows={Math.max(1, draft.split('\n').length)}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
-            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
             autoFocus
@@ -129,6 +131,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
           >

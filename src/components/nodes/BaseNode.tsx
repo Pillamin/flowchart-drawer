@@ -82,18 +82,18 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
     ? '#3B82F6'
     : config.colors.border
 
-  // 텍스트 길이 및 줄바꿈 수에 따른 폰트 크기 계산 (기본 글자는 크고 또렷하게, 내용이 많아지면 단계적 축소)
+  // 텍스트 길이 및 줄바꿈 수에 따른 폰트 크기 계산 (1줄은 1.5배 크게 ~21px, 2줄은 딱 맞는 크기 ~15px, 그 이상은 단계적 축소)
   const getFontSizeClass = (text: string) => {
     const lines = text.split('\n')
     const lineCount = lines.length
     const maxLineLen = Math.max(...lines.map(l => l.length), 0)
     const totalLen = text.length
 
-    if (totalLen > 40 || lineCount >= 4 || maxLineLen > 18) return 'text-[10px] leading-tight font-bold'
-    if (totalLen > 24 || lineCount >= 3 || maxLineLen > 13) return 'text-[11.5px] leading-tight font-bold'
-    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[13px] leading-snug font-bold'
-    if (totalLen > 5) return 'text-[14.5px] leading-normal font-bold'
-    return 'text-base sm:text-[17px] leading-normal font-extrabold'
+    if (totalLen > 38 || lineCount >= 4 || maxLineLen > 18) return 'text-[11px] leading-tight font-bold'
+    if (totalLen > 24 || lineCount >= 3 || maxLineLen > 13) return 'text-[12.5px] leading-tight font-bold'
+    if (totalLen > 14 || lineCount >= 2 || maxLineLen > 8) return 'text-[14.5px] leading-tight font-bold'
+    if (totalLen > 6) return 'text-[17px] leading-snug font-extrabold'
+    return 'text-[20px] sm:text-[21px] leading-snug font-black tracking-tight'
   }
 
   return (
@@ -124,19 +124,21 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
       {/* 표준 공통 연결점 사용 */}
       <StandardNodeHandles nodeId={id} isHovered={isHovered} selected={selected} />
 
-      <div className="w-full h-full flex items-center justify-center px-2 py-0.5 overflow-hidden pointer-events-none">
+      <div className="w-full h-full flex items-center justify-center px-1.5 py-0 overflow-hidden pointer-events-none">
         {editing ? (
           <textarea
             ref={inputRef}
+            rows={Math.max(1, draft.split('\n').length)}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
-            className={`w-full max-h-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
             autoFocus
@@ -148,6 +150,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
               wordBreak: 'keep-all',
+              overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
             }}
           >
