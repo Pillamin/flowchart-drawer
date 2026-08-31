@@ -1,15 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react'
 import { useFlowStore } from '../../store/flowStore'
-import type { StepKind, AlgorithmStep } from '../../types'
+import type { AlgorithmStep } from '../../types'
 
-const KIND_LABELS: Record<StepKind, { label: string; bg: string; text: string; border: string }> = {
-  none: { label: '', bg: 'bg-slate-100', text: 'text-slate-500', border: 'border-slate-300' },
-  terminal: { label: '시작/끝', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
-  io: { label: '입출력', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' },
-  process: { label: '처리', bg: 'bg-sky-100', text: 'text-sky-800', border: 'border-sky-300' },
-  decision: { label: '판단(선택)', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
-  loop: { label: '판단(반복)', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
-}
+
 
 interface DropIndicator {
   location: 'root' | 'yes' | 'no'
@@ -33,10 +26,23 @@ function findStepById(steps: AlgorithmStep[], id: string | null): AlgorithmStep 
   return null
 }
 
-export const AlgorithmPanel: React.FC = () => {
+function getStepNumber(depth: number, idx: number): string {
+  const korean = ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차', '카', '타', '파', '하']
+  const index = idx % korean.length
+  if (depth === 0) return `${idx + 1}.`
+  if (depth === 1) return `${korean[index]}.`
+  if (depth === 2) return `${idx + 1})`
+  if (depth >= 3) return `${korean[index]})`
+  return ''
+}
+
+interface AlgorithmPanelProps {
+  onClearClick?: () => void
+}
+
+export const AlgorithmPanel: React.FC<AlgorithmPanelProps> = ({ onClearClick }) => {
   const isAlgorithmPanelOpen = useFlowStore(s => s.isAlgorithmPanelOpen)
   const algorithmSteps = useFlowStore(s => s.algorithmSteps)
-  const hoveredStepId = useFlowStore(s => s.hoveredStepId)
   const pastAlgorithm = useFlowStore(s => s.pastAlgorithm)
   const futureAlgorithm = useFlowStore(s => s.futureAlgorithm)
   const undoAlgorithm = useFlowStore(s => s.undoAlgorithm)
@@ -45,15 +51,17 @@ export const AlgorithmPanel: React.FC = () => {
   const setAlgorithmPanelOpen = useFlowStore(s => s.setAlgorithmPanelOpen)
   const addAlgorithmStep = useFlowStore(s => s.addAlgorithmStep)
   const updateAlgorithmStep = useFlowStore(s => s.updateAlgorithmStep)
+  const addBranchAlgorithmStep = useFlowStore(s => s.addBranchAlgorithmStep)
+  const removeBranchAlgorithmStep = useFlowStore(s => s.removeBranchAlgorithmStep)
   const moveStepToBranch = useFlowStore(s => s.moveStepToBranch)
   const moveStepToRoot = useFlowStore(s => s.moveStepToRoot)
-  const updateAlgorithmStepLoopConfig = useFlowStore(s => s.updateAlgorithmStepLoopConfig)
   const removeAlgorithmStep = useFlowStore(s => s.removeAlgorithmStep)
-  const clearAlgorithmSteps = useFlowStore(s => s.clearAlgorithmSteps)
-  const moveAlgorithmStep = useFlowStore(s => s.moveAlgorithmStep)
   const setHoveredStepId = useFlowStore(s => s.setHoveredStepId)
+  const indentStep = useFlowStore(s => s.indentStep)
+  const outdentStep = useFlowStore(s => s.outdentStep)
+  const toggleDecision = useFlowStore(s => s.toggleDecision)
 
-  const [newText, setNewText] = useState('')
+  const [newStepText, setNewStepText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null)
@@ -122,12 +130,7 @@ export const AlgorithmPanel: React.FC = () => {
 
   if (!isAlgorithmPanelOpen) return null
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newText.trim()) return
-    addAlgorithmStep(newText, 'none')
-    setNewText('')
-  }
+
 
   const startEdit = (id: string, text: string) => {
     setEditingId(id)
@@ -239,41 +242,27 @@ export const AlgorithmPanel: React.FC = () => {
   }
 
   // Render Full Live Preview Card at candidate target location
-  const renderLivePreviewCard = (step: AlgorithmStep | null, location: 'root' | 'yes' | 'no') => {
+  const renderLivePreviewCard = (step: AlgorithmStep | null, _location: 'root' | 'yes' | 'no') => {
     if (!step) return null
-    const kindStyle = KIND_LABELS[step.kind] || KIND_LABELS.none
-    const borderStyle =
-      location === 'root'
-        ? 'border-2 border-dashed border-blue-500 bg-blue-50/90 text-blue-900 shadow-md ring-2 ring-blue-300'
-        : location === 'yes'
-        ? 'border-2 border-dashed border-emerald-500 bg-emerald-100/90 text-emerald-900 shadow-md ring-2 ring-emerald-300'
-        : 'border-2 border-dashed border-rose-500 bg-rose-100/90 text-rose-900 shadow-md ring-2 ring-rose-300'
+    let borderStyle = 'border-slate-300 text-slate-500'
 
     return (
-      <div 
+      <div
         onDragOver={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          e.dataTransfer.dropEffect = 'move'
         }}
         onDrop={handleDrop}
-        className={`group rounded-md px-2.5 py-1.5 text-xs sm:text-sm flex flex-col gap-1 transition-all my-1 ${borderStyle}`}
+        className={`group rounded-md px-1 py-1 text-xs sm:text-sm flex flex-col gap-1 transition-all my-1 border-dashed border-2 bg-white/60 ${borderStyle}`}
       >
-        <div className="flex items-start justify-between gap-1.5 w-full opacity-90">
-          <div className="flex items-start gap-1.5 min-w-0 flex-1">
-            <span className="text-slate-400 font-bold text-xs select-none mt-0.5">⋮⋮</span>
-            {kindStyle.label ? (
-              <span className={`text-xs font-bold border px-1.5 py-0.5 rounded ${kindStyle.bg} ${kindStyle.text} ${kindStyle.border} mt-0.5`}>
-                {kindStyle.label}
-              </span>
-            ) : null}
-            <span
-              className="flex-1 font-bold text-xs sm:text-sm whitespace-pre-wrap py-0.5"
-              style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-            >
-              {step.text}
-            </span>
-          </div>
+        <div className="flex items-start gap-1.5 w-full opacity-60">
+          <span className="text-slate-400 font-bold text-xs select-none pt-1.5 flex-shrink-0 w-4">⋮⋮</span>
+          <span
+            className="flex-1 font-medium text-xs sm:text-sm whitespace-pre-wrap py-1.5"
+            style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+          >
+            {step.text || '빈 단계'}
+          </span>
         </div>
       </div>
     )
@@ -285,9 +274,9 @@ export const AlgorithmPanel: React.FC = () => {
     idx: number,
     isNested?: boolean,
     parentDecisionId?: string,
-    branch?: 'yes' | 'no'
+    branch?: 'yes' | 'no',
+    depth: number = 0
   ) => {
-    const isHovered = hoveredStepId === step.id
     const isDragging = draggedStepId === step.id
     const currentLocation = isNested && branch ? branch : 'root'
 
@@ -302,286 +291,209 @@ export const AlgorithmPanel: React.FC = () => {
         {showPreviewBefore && renderLivePreviewCard(draggedStep, currentLocation)}
 
         <div
-          draggable
           onDragStart={(e) => handleDragStart(e, step.id)}
-          onDragEnd={handleDragEnd}
+          onDragEnd={(e) => {
+            handleDragEnd()
+            e.currentTarget.setAttribute('draggable', 'false')
+          }}
           onDragOver={(e) => handleCardDragOver(e, currentLocation, idx, parentDecisionId)}
           onDrop={handleDrop}
           onMouseEnter={() => setHoveredStepId(step.id)}
-          onMouseLeave={() => setHoveredStepId(null)}
-          className={`group border rounded-md transition-all flex flex-col px-2.5 py-2 text-xs sm:text-sm gap-1.5 ${
-            isDragging
-              ? 'opacity-30 border-dashed border-blue-400 bg-blue-50/60'
-              : 'bg-white cursor-grab active:cursor-grabbing'
-          } ${
-            !isDragging && isHovered
-              ? 'border-blue-500 shadow-xs ring-1 ring-blue-300'
-              : !isDragging
-              ? 'border-slate-200 hover:border-slate-300'
-              : ''
+          onMouseLeave={(e) => {
+            setHoveredStepId(null)
+            e.currentTarget.setAttribute('draggable', 'false')
+          }}
+          className={`step-card-wrapper relative group flex flex-col w-full text-sm transition-all border rounded-md ${
+            isDragging ? 'opacity-30 border-dashed border-slate-400 bg-slate-100/60' : 'bg-white border-slate-200 shadow-sm'
           }`}
         >
           {/* Main Row */}
-          <div className="flex items-start justify-between gap-1.5 w-full cursor-grab active:cursor-grabbing">
-            <div className="flex items-start gap-1.5 min-w-0 flex-1">
-              {/* Drag Handle Icon */}
-              <span className="text-slate-400 hover:text-slate-600 cursor-grab text-xs select-none font-bold flex-shrink-0 mt-0.5">
-                ⋮⋮
-              </span>
+          <div className="flex items-start gap-1.5 w-full hover:bg-slate-50 transition-colors py-1.5 px-2 rounded-t-md">
+            {/* Drag Handle Icon - 좌측 */}
+            <div 
+              className="drag-handle flex items-center gap-1 pt-2.5 flex-shrink-0 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing select-none" 
+              title="드래그하여 순서 변경"
+              onMouseEnter={(e) => {
+                const card = e.currentTarget.closest('.step-card-wrapper')
+                if (card) card.setAttribute('draggable', 'true')
+              }}
+              onMouseLeave={(e) => {
+                const card = e.currentTarget.closest('.step-card-wrapper')
+                if (card) card.setAttribute('draggable', 'false')
+              }}
+              onMouseUp={(e) => {
+                const card = e.currentTarget.closest('.step-card-wrapper')
+                if (card) card.setAttribute('draggable', 'false')
+              }}
+            >
+              <span>⋮⋮</span>
+              <span className="text-[11px] font-bold w-4 text-center">{getStepNumber(depth, idx)}</span>
+            </div>
 
-              {/* Index Badge or Bullet */}
-              {!isNested ? (
-                <span className="rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center flex-shrink-0 w-5 h-5 text-xs sm:text-sm mt-0.5">
-                  {idx + 1}
-                </span>
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-slate-300 flex-shrink-0 mt-2" />
-              )}
-
-              {/* Step Text or Inline Auto-resizing Textarea Editor */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
               {editingId === step.id ? (
-                <div className="flex-1 min-w-0" onMouseDown={(e) => e.stopPropagation()}>
-                  <textarea
-                    ref={(el) => {
-                      if (el) {
-                        el.style.height = 'auto'
-                        el.style.height = `${el.scrollHeight}px`
+                <textarea
+                  onFocus={(e) => e.target.select()}
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto'
+                      el.style.height = `${el.scrollHeight}px`
+                    }
+                  }}
+                  value={editText}
+                  onChange={(e) => {
+                    setEditText(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = `${e.target.scrollHeight}px`
+                  }}
+                  onBlur={() => saveEdit(step.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      saveEdit(step.id)
+                    } else if (e.key === 'Escape') {
+                      setEditingId(null)
+                    } else if (e.key === 'Tab') {
+                      e.preventDefault()
+                      if (e.shiftKey) {
+                        outdentStep(step.id)
+                      } else {
+                        indentStep(step.id)
                       }
-                    }}
-                    value={editText}
-                    onChange={(e) => {
-                      setEditText(e.target.value)
-                      e.target.style.height = 'auto'
-                      e.target.style.height = `${e.target.scrollHeight}px`
-                    }}
-                    onBlur={() => saveEdit(step.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        saveEdit(step.id)
-                      } else if (e.key === 'Escape') {
-                        setEditingId(null)
-                      }
-                    }}
-                    rows={1}
-                    className="w-full text-xs sm:text-sm border border-blue-400 rounded p-1 outline-none focus:ring-1 focus:ring-blue-500 min-w-0 bg-white leading-relaxed resize-none overflow-hidden font-normal"
-                    style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-                    autoFocus
-                  />
-                </div>
+                    }
+                  }}
+                  rows={1}
+                  className="w-full text-sm bg-white border border-slate-300 rounded px-1.5 py-1 outline-none shadow-sm min-w-0 resize-none overflow-hidden focus:ring-1 focus:ring-slate-400"
+                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+                  autoFocus
+                />
               ) : (
                 <div
-                  onClick={() => startEdit(step.id, step.text)}
-                  className="flex-1 text-slate-700 font-medium whitespace-pre-wrap leading-relaxed cursor-pointer hover:text-slate-900 min-w-0 text-xs sm:text-sm py-0.5"
+                  onDoubleClick={() => startEdit(step.id, step.text)}
+                  className={`text-slate-900 font-semibold text-[13px] sm:text-[14px] leading-relaxed whitespace-pre-wrap cursor-text min-w-0 py-2 px-2 rounded transition-colors hover:bg-slate-100/50 select-none ${
+                    !step.text.trim() ? 'italic text-slate-400 font-medium' : ''
+                  }`}
                   style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-                  title="클릭하여 내용 수정"
+                  title="더블클릭하여 내용 편집"
                 >
-                  {step.text}
+                  {step.text || '빈 단계 (수정하려면 클릭)'}
                 </div>
-              )}
-
-              {step.nodeId && (
-                <span className="text-[10px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded flex-shrink-0 mt-0.5" title="순서도 노드와 연결됨">
-                  🔗
-                </span>
               )}
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 flex-shrink-0 mt-0.5">
-              {!isNested && (
-                <>
-                  <button
-                    onClick={() => moveAlgorithmStep(step.id, 'up')}
-                    disabled={idx === 0}
-                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs cursor-pointer"
-                    title="위로 이동"
-                  >
-                    ▲
-                  </button>
-                  <button
-                    onClick={() => moveAlgorithmStep(step.id, 'down')}
-                    disabled={idx === algorithmSteps.length - 1}
-                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 text-xs cursor-pointer"
-                    title="아래로 이동"
-                  >
-                    ▼
-                  </button>
-                </>
-              )}
+            {/* Action buttons (Delete / Substep Toggle) */}
+            <div className="flex items-center gap-1 flex-shrink-0 pt-2.5 pr-1">
+              <label className="flex items-center gap-1 cursor-pointer pr-1">
+                <input
+                  type="checkbox"
+                  checked={step.kind === 'decision'}
+                  onChange={(e) => toggleDecision(step.id, e.target.checked)}
+                  className="cursor-pointer w-3 h-3 text-blue-600 rounded border-slate-300 focus:ring-blue-500 accent-blue-500"
+                />
+                <span className="text-[10px] font-medium text-slate-500 select-none">조건</span>
+              </label>
               <button
-                onClick={() => removeAlgorithmStep(step.id)}
-                className="p-1 text-red-400 hover:text-red-600 text-xs cursor-pointer"
+                onClick={() => {
+                  if (isNested && parentDecisionId && branch) {
+                    removeBranchAlgorithmStep(parentDecisionId, branch, step.id)
+                  } else {
+                    removeAlgorithmStep(step.id)
+                  }
+                }}
+                className="p-1 text-slate-400 hover:text-red-600 text-xs cursor-pointer rounded hover:bg-red-50"
                 title="삭제"
               >
-                🗑
+                ✕
               </button>
             </div>
           </div>
 
-          {/* Decision Nested Branch Containers */}
+          {/* Decision Branches */}
           {step.kind === 'decision' && (
-            <div className="mt-1 flex flex-col gap-1.5 pt-1.5 border-t border-purple-100">
-              {/* YES BRANCH CONTAINER */}
+            <div className="ml-5 pr-2 flex flex-col gap-2 mt-1 mb-2">
+              {/* YES BRANCH */}
               <div
-                onDragOver={(e) =>
-                  handleBranchBoxDragOver(e, 'yes', step.id, (step.yesSteps || []).length)
-                }
+                onDragOver={(e) => handleBranchBoxDragOver(e, 'yes', step.id, (step.yesSteps || []).length)}
                 onDrop={handleDrop}
-                className="p-2 rounded-md border border-emerald-200 bg-emerald-50/50 flex flex-col gap-1"
+                className="flex flex-col gap-1 min-h-[20px] p-2 rounded-md border border-emerald-200 bg-emerald-50/30 shadow-xs transition-colors hover:border-emerald-300"
               >
-                <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
-                  <span className="flex items-center gap-1">
-                    <span>✅</span> 참(예) 실행 경로
-                  </span>
-                  <span className="text-[10px] font-normal text-emerald-600 bg-white/80 border border-emerald-200 px-1.5 py-0.2 rounded">
-                    드롭 구역
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  {(step.yesSteps || []).length === 0 ? (
-                    <>
-                      {dropIndicator?.location === 'yes' && dropIndicator.decisionId === step.id && (
-                        renderLivePreviewCard(draggedStep, 'yes')
-                      )}
-                      <div className="text-xs text-emerald-700 font-medium py-1.5 text-center border border-dashed border-emerald-300 rounded bg-white/70">
-                        여기로 블록을 드래그하세요!
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {(step.yesSteps || []).map((yStep, yIdx) =>
-                        renderStepCard(yStep, yIdx, true, step.id, 'yes')
-                      )}
-                      {dropIndicator?.location === 'yes' &&
-                        dropIndicator.decisionId === step.id &&
-                        dropIndicator.index === (step.yesSteps || []).length &&
-                        renderLivePreviewCard(draggedStep, 'yes')}
-                    </>
+                <div className="text-[11px] font-bold text-emerald-600 px-1 select-none flex items-center justify-between w-full">
+                  <div className="flex items-center gap-1.5">
+                    [예]
+                  </div>
+                  {(step.yesSteps || []).length > 0 && (
+                    <div className="flex gap-1 pr-1">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'yes', '', 'process'); }} className="text-[11px] text-slate-700 font-semibold px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer whitespace-nowrap">+ 단계 추가</button>
+                    </div>
                   )}
+                </div>
+                <div className="flex flex-col">
+                  {(step.yesSteps || []).length === 0 && (
+                    <div className="flex items-center gap-2 py-1.5 px-2">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'yes', '', 'process'); }} className="text-[11px] text-slate-700 font-bold px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer transition-colors">+ 단계 추가</button>
+                    </div>
+                  )}
+                  {(step.yesSteps || []).map((yStep, yIdx) => renderStepCard(yStep, yIdx, true, step.id, 'yes', depth + 1))}
+                  {dropIndicator?.location === 'yes' && dropIndicator.decisionId === step.id && dropIndicator.index === (step.yesSteps || []).length && renderLivePreviewCard(draggedStep, 'yes')}
                 </div>
               </div>
 
-              {/* NO BRANCH CONTAINER */}
+              {/* NO BRANCH */}
               <div
-                onDragOver={(e) =>
-                  handleBranchBoxDragOver(e, 'no', step.id, (step.noSteps || []).length)
-                }
+                onDragOver={(e) => handleBranchBoxDragOver(e, 'no', step.id, (step.noSteps || []).length)}
                 onDrop={handleDrop}
-                className="p-2 rounded-md border border-rose-200 bg-rose-50/50 flex flex-col gap-1"
+                className="flex flex-col gap-1 min-h-[20px] p-2 rounded-md border border-rose-200 bg-rose-50/30 shadow-xs transition-colors hover:border-rose-300"
               >
-                <div className="flex items-center justify-between text-xs font-bold text-rose-900">
-                  <span className="flex items-center gap-1">
-                    <span>❌</span> 거짓(아니오) 실행 경로
-                  </span>
-                  <span className="text-[10px] font-normal text-rose-600 bg-white/80 border border-rose-200 px-1.5 py-0.2 rounded">
-                    드롭 구역
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  {(step.noSteps || []).length === 0 ? (
-                    <>
-                      {dropIndicator?.location === 'no' && dropIndicator.decisionId === step.id && (
-                        renderLivePreviewCard(draggedStep, 'no')
-                      )}
-                      <div className="text-xs text-rose-700 font-medium py-1.5 text-center border border-dashed border-rose-300 rounded bg-white/70">
-                        여기로 블록을 드래그하세요!
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {(step.noSteps || []).map((nStep, nIdx) =>
-                        renderStepCard(nStep, nIdx, true, step.id, 'no')
-                      )}
-                      {dropIndicator?.location === 'no' &&
-                        dropIndicator.decisionId === step.id &&
-                        dropIndicator.index === (step.noSteps || []).length &&
-                        renderLivePreviewCard(draggedStep, 'no')}
-                    </>
+                <div className="text-[11px] font-bold text-rose-500 px-1 select-none flex items-center justify-between w-full">
+                  <div className="flex items-center gap-1.5">
+                    [아니오]
+                  </div>
+                  {(step.noSteps || []).length > 0 && (
+                    <div className="flex gap-1 pr-1">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'no', '', 'process'); }} className="text-[11px] text-slate-700 font-semibold px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer whitespace-nowrap">+ 단계 추가</button>
+                    </div>
                   )}
+                </div>
+                <div className="flex flex-col">
+                  {(step.noSteps || []).length === 0 && (
+                    <div className="flex items-center gap-2 py-1.5 px-2">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'no', '', 'process'); }} className="text-[11px] text-slate-700 font-bold px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer transition-colors">+ 단계 추가</button>
+                    </div>
+                  )}
+                  {(step.noSteps || []).map((nStep, nIdx) => renderStepCard(nStep, nIdx, true, step.id, 'no', depth + 1))}
+                  {dropIndicator?.location === 'no' && dropIndicator.decisionId === step.id && dropIndicator.index === (step.noSteps || []).length && renderLivePreviewCard(draggedStep, 'no')}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Loop Nested Branch Container (반복구조) */}
+          {/* Loop Block */}
           {step.kind === 'loop' && (
-            <div className="mt-1 flex flex-col gap-1.5 pt-1.5 border-t border-purple-100">
-              {/* 1. Loop Condition Trigger Select */}
-              <div className="flex items-center justify-between gap-1.5 px-2 py-1 bg-purple-100/60 rounded border border-purple-200 text-xs">
-                <span className="font-bold text-purple-900 flex items-center gap-1">
-                  <span>🔄</span> 반복 실행 조건:
-                </span>
-                <select
-                  value={step.loopTrigger ?? 'yes'}
-                  onChange={(e) => updateAlgorithmStepLoopConfig(step.id, { loopTrigger: e.target.value as 'yes' | 'no' })}
-                  className="text-xs font-bold border border-purple-300 rounded px-1.5 py-0.5 bg-white text-purple-900 outline-none cursor-pointer"
-                >
-                  <option value="yes">조건 참(예)</option>
-                  <option value="no">조건 거짓(아니오)</option>
-                </select>
-              </div>
-
-              {/* 2. Code Block Execution Area */}
+            <div className="ml-5 pr-2 flex flex-col gap-2 mt-1 mb-2">
               <div
-                onDragOver={(e) =>
-                  handleBranchBoxDragOver(e, 'yes', step.id, (step.yesSteps || []).length)
-                }
+                onDragOver={(e) => handleBranchBoxDragOver(e, 'yes', step.id, (step.yesSteps || []).length)}
                 onDrop={handleDrop}
-                className="p-2 rounded-md border border-purple-200 bg-purple-50/50 flex flex-col gap-1"
+                className="flex flex-col gap-1 min-h-[20px] p-2 rounded-md border border-purple-200 bg-purple-50/30 shadow-xs transition-colors hover:border-purple-300"
               >
-                <div className="flex items-center justify-between text-xs font-bold text-purple-900">
-                  <span className="flex items-center gap-1">
-                    <span>📦</span> 반복 실행할 블록
-                  </span>
-                  <span className="text-[10px] font-normal text-purple-600 bg-white/80 border border-purple-200 px-1.5 py-0.2 rounded">
-                    드롭 구역
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  {(step.yesSteps || []).length === 0 ? (
-                    <>
-                      {dropIndicator?.location === 'yes' && dropIndicator.decisionId === step.id && (
-                        renderLivePreviewCard(draggedStep, 'yes')
-                      )}
-                      <div className="text-xs text-purple-700 font-medium py-1.5 text-center border border-dashed border-purple-300 rounded bg-white/70">
-                        여기로 블록을 드래그하세요!
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {(step.yesSteps || []).map((lStep, lIdx) =>
-                        renderStepCard(lStep, lIdx, true, step.id, 'yes')
-                      )}
-                      {dropIndicator?.location === 'yes' &&
-                        dropIndicator.decisionId === step.id &&
-                        dropIndicator.index === (step.yesSteps || []).length &&
-                        renderLivePreviewCard(draggedStep, 'yes')}
-                    </>
+                <div className="text-[11px] font-bold text-purple-600 px-1 select-none flex items-center justify-between w-full">
+                  <div className="flex items-center gap-1.5">
+                    [반복 실행]
+                  </div>
+                  {(step.yesSteps || []).length > 0 && (
+                    <div className="flex gap-1 pr-1">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'yes', '', 'process'); }} className="text-[11px] text-slate-700 font-semibold px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer whitespace-nowrap">+ 단계 추가</button>
+                    </div>
                   )}
                 </div>
-              </div>
-
-              {/* 3. Target Block Jump Selection */}
-              <div className="flex items-center justify-between gap-1.5 px-2 py-1 bg-purple-100/40 rounded border border-purple-200 text-xs">
-                <span className="font-bold text-purple-900 flex items-center gap-1">
-                  <span>↩️</span> 되돌아갈 블록:
-                </span>
-                <select
-                  value={step.targetStepId ?? ''}
-                  onChange={(e) => updateAlgorithmStepLoopConfig(step.id, { targetStepId: e.target.value || undefined })}
-                  className="text-xs font-medium border border-purple-300 rounded px-1.5 py-0.5 bg-white text-slate-800 outline-none cursor-pointer max-w-[150px] truncate"
-                >
-                  <option value="">-- 이동 대상 선택 --</option>
-                  {algorithmSteps.map((rootStep, rootIdx) => (
-                    <option key={rootStep.id} value={rootStep.id}>
-                      {rootIdx + 1}번 ({rootStep.text || '제목 없음'})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-col">
+                  {(step.yesSteps || []).length === 0 && (
+                    <div className="flex items-center gap-2 py-1.5 px-2">
+                      <button onClick={(e) => { e.stopPropagation(); addBranchAlgorithmStep(step.id, 'yes', '', 'process'); }} className="text-[11px] text-slate-700 font-bold px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-100 shadow-sm cursor-pointer transition-colors">+ 단계 추가</button>
+                    </div>
+                  )}
+                  {(step.yesSteps || []).map((lStep, lIdx) => renderStepCard(lStep, lIdx, true, step.id, 'yes', depth + 1))}
+                  {dropIndicator?.location === 'yes' && dropIndicator.decisionId === step.id && dropIndicator.index === (step.yesSteps || []).length && renderLivePreviewCard(draggedStep, 'yes')}
+                </div>
               </div>
             </div>
           )}
@@ -603,9 +515,6 @@ export const AlgorithmPanel: React.FC = () => {
           <span className="text-xl flex-shrink-0">📝</span>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">자연어 알고리즘</h2>
-            {panelWidth >= 340 && (
-              <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5 truncate">단계별 순서 작성</p>
-            )}
           </div>
         </div>
 
@@ -634,10 +543,8 @@ export const AlgorithmPanel: React.FC = () => {
           {/* Clear Algorithm Steps Button */}
           <button
             onClick={() => {
-              if (algorithmSteps.length > 0) {
-                if (window.confirm('자연어 알고리즘의 모든 단계를 초기화할까요?')) {
-                  clearAlgorithmSteps()
-                }
+              if (algorithmSteps.length > 0 && onClearClick) {
+                onClearClick()
               }
             }}
             disabled={algorithmSteps.length === 0}
@@ -660,39 +567,28 @@ export const AlgorithmPanel: React.FC = () => {
       </div>
 
 
-      {/* Add New Root Step Form */}
-      <form onSubmit={handleAdd} className="p-2.5 border-b border-slate-200 bg-slate-50/80 flex flex-col gap-1.5">
-        <textarea
-          ref={(el) => {
-            if (el) {
-              el.style.height = 'auto'
-              el.style.height = `${el.scrollHeight}px`
-            }
-          }}
-          placeholder="동작을 입력하세요."
-          value={newText}
-          onChange={(e) => {
-            setNewText(e.target.value)
-            e.target.style.height = 'auto'
-            e.target.style.height = `${e.target.scrollHeight}px`
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              if (newText.trim()) {
-                addAlgorithmStep(newText, 'none')
-                setNewText('')
-              }
-            }
-          }}
-          rows={1}
-          className="w-full text-xs sm:text-sm border border-slate-300 rounded-md p-2 bg-white outline-none focus:border-blue-500 resize-none overflow-hidden leading-relaxed font-normal"
-          style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+      {/* Add New Step Form */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (newStepText.trim()) {
+            addAlgorithmStep(newStepText.trim(), 'process')
+            setNewStepText('')
+          }
+        }}
+        className="p-2 border-b border-slate-200 bg-white flex gap-2 justify-stretch shrink-0 relative z-10 shadow-sm"
+      >
+        <input
+          type="text"
+          value={newStepText}
+          onChange={(e) => setNewStepText(e.target.value)}
+          placeholder="단계를 입력하세요..."
+          className="flex-1 text-xs sm:text-sm bg-white border border-slate-300 rounded-md px-2 py-1.5 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
         />
         <button
           type="submit"
-          disabled={!newText.trim()}
-          className="w-full text-xs sm:text-sm bg-blue-600 text-white font-bold py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-40 transition shadow-xs cursor-pointer"
+          disabled={!newStepText.trim()}
+          className="text-xs sm:text-sm bg-blue-50 text-blue-600 border border-blue-200 font-bold px-3 py-1.5 rounded-md hover:bg-blue-100 disabled:opacity-50 transition cursor-pointer whitespace-nowrap"
         >
           + 단계 추가
         </button>
@@ -703,7 +599,7 @@ export const AlgorithmPanel: React.FC = () => {
         ref={scrollContainerRef}
         onDragOver={(e) => handleContainerDragOver(e, 'root', algorithmSteps.length)}
         onDrop={handleDrop}
-        className="flex-1 overflow-y-auto p-2 select-none space-y-1.5"
+        className="flex-1 overflow-y-auto p-2 select-none space-y-1.5 bg-slate-50/50"
       >
         {algorithmSteps.length === 0 ? (
           <div className="text-center py-10 text-xs sm:text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
@@ -711,7 +607,7 @@ export const AlgorithmPanel: React.FC = () => {
           </div>
         ) : (
           <>
-            {algorithmSteps.map((step, idx) => renderStepCard(step, idx))}
+            {algorithmSteps.map((step, idx) => renderStepCard(step, idx, false, undefined, undefined, 0))}
             {dropIndicator?.location === 'root' &&
               dropIndicator.index === algorithmSteps.length &&
               renderLivePreviewCard(draggedStep, 'root')}

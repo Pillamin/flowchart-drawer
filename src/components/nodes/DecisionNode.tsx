@@ -88,7 +88,9 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
               if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
             }}
-            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            onMouseDown={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

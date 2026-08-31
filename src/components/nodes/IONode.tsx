@@ -114,7 +114,9 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
-            className={`w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            onMouseDown={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

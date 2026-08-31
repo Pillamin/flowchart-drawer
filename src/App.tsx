@@ -1,11 +1,12 @@
 import React, { useCallback, useRef, useState, Component } from 'react'
-import { ReactFlowProvider } from '@xyflow/react'
+import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { Sidebar } from './components/Sidebar'
 import { AlgorithmPanel } from './components/AlgorithmPanel'
 import { Toolbar } from './components/Toolbar'
 import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
 import { ClearModal } from './components/modals/ClearModal'
+import { ClearAlgorithmModal } from './components/modals/ClearAlgorithmModal'
 import { TemplateModal } from './components/modals/TemplateModal'
 import { ValidationModal } from './components/modals/ValidationModal'
 import { SimulationPanel } from './components/modals/SimulationPanel'
@@ -44,10 +45,12 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Er
 const AppInner: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null)
   const clearCanvas = useFlowStore(s => s.clearCanvas)
+  const clearAlgorithmSteps = useFlowStore(s => s.clearAlgorithmSteps)
   const simStatus = useFlowStore(s => s.simulation.status)
   const resetSimulation = useFlowStore(s => s.resetSimulation)
 
   const [showClear, setShowClear] = useState(false)
+  const [showAlgorithmClear, setShowAlgorithmClear] = useState(false)
   const [showTemplate, setShowTemplate] = useState(false)
   const [showValidation, setShowValidation] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
@@ -62,6 +65,11 @@ const AppInner: React.FC = () => {
   useUndoRedo()
   const { validate } = useValidation()
   const { start: startSim, stop: stopSim } = useSimulation()
+  const { fitView } = useReactFlow()
+  const past = useFlowStore(s => s.past)
+  const future = useFlowStore(s => s.future)
+  const undo = useFlowStore(s => s.undo)
+  const redo = useFlowStore(s => s.redo)
 
   const handleValidate = useCallback(() => {
     const result = validate()
@@ -83,7 +91,6 @@ const AppInner: React.FC = () => {
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas font-sans relative">
       {/* Top Toolbar */}
       <Toolbar
-        onClearClick={() => setShowClear(true)}
         onValidateClick={handleValidate}
         onSimulateClick={handleSimulate}
         onToggleSidebar={() => {
@@ -98,7 +105,7 @@ const AppInner: React.FC = () => {
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        <AlgorithmPanel />
+        <AlgorithmPanel onClearClick={() => setShowAlgorithmClear(true)} />
         
         {/* Mobile Sidebar Overlay Background */}
         {(isMobileSidebarOpen || isMobileRightPanelOpen) && (
@@ -111,12 +118,41 @@ const AppInner: React.FC = () => {
           />
         )}
         
-        {/* Sidebar Wrapper */}
-        <div className={`transition-transform transform md:translate-x-0 absolute md:relative z-40 h-full ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
-          <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
-        </div>
+        {/* Flowchart Container (Sidebar + Canvas + Header) */}
+        <div className="flex flex-1 flex-col relative min-w-0">
+          {/* Flowchart Header */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xl flex-shrink-0">🔲</span>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">순서도 알고리즘</h2>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                <button onClick={undo} disabled={past.length === 0} className="w-8 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-sm font-bold transition-colors flex items-center justify-center cursor-pointer" title="실행 취소"><span>↩</span></button>
+                <div className="w-px h-4 bg-slate-200 my-auto" />
+                <button onClick={redo} disabled={future.length === 0} className="w-8 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-sm font-bold transition-colors flex items-center justify-center cursor-pointer" title="다시 실행"><span>↪</span></button>
+              </div>
+              <button onClick={() => { fitView({ padding: 0.15, duration: 400 }) }} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="화면에 맞추기">
+                <span className="text-xs">⊡</span><span className="hidden sm:inline">전체보기</span>
+              </button>
+              <button onClick={() => setShowClear(true)} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="캔버스 초기화">
+                <span className="text-xs">🗑</span><span className="hidden sm:inline">초기화</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Flowchart Content */}
+          <div className="flex flex-1 overflow-hidden relative">
+            {/* Sidebar Wrapper */}
+            <div className={`transition-transform transform md:translate-x-0 absolute md:relative z-40 h-full ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
+              <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
+            </div>
 
-        <Canvas canvasRef={canvasRef} />
+            <Canvas canvasRef={canvasRef} />
+          </div>
+        </div>
         
         {/* RightPanel Wrapper */}
         <div className={`transition-transform transform md:translate-x-0 absolute right-0 md:relative z-40 h-full ${isMobileRightPanelOpen ? 'translate-x-0' : 'translate-x-full md:block'}`}>
@@ -133,6 +169,11 @@ const AppInner: React.FC = () => {
         isOpen={showClear}
         onClose={() => setShowClear(false)}
         onConfirm={clearCanvas}
+      />
+      <ClearAlgorithmModal
+        isOpen={showAlgorithmClear}
+        onClose={() => setShowAlgorithmClear(false)}
+        onConfirm={clearAlgorithmSteps}
       />
       <TemplateModal
         isOpen={showTemplate}

@@ -68,6 +68,7 @@ interface FlowStore {
   toggleAutoSync: () => void
   addAlgorithmStep: (text: string, kind: StepKind) => void
   updateAlgorithmStep: (id: string, text: string, kind?: StepKind) => void
+  toggleDecision: (id: string, isDecision: boolean) => void
   updateAlgorithmStepLoopConfig: (id: string, config: { loopTrigger?: 'yes' | 'no'; targetStepId?: string }) => void
   updateAlgorithmStepBranchText: (id: string, branch: 'yes' | 'no', text: string) => void
   reorderAlgorithmSteps: (fromIndex: number, toIndex: number) => void
@@ -79,6 +80,9 @@ interface FlowStore {
   removeAlgorithmStep: (id: string) => void
   clearAlgorithmSteps: () => void
   moveAlgorithmStep: (id: string, direction: 'up' | 'down') => void
+  insertStepAfter: (targetId: string, text: string, kind?: StepKind) => void
+  indentStep: (id: string) => void
+  outdentStep: (id: string) => void
   setHoveredStepId: (id: string | null) => void
   setIsDraggingEdgeEndpoint: (dragging: boolean) => void
   generateFlowchartFromAlgorithm: () => void
@@ -86,6 +90,15 @@ interface FlowStore {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
+function autoDetectKind(text: string, defaultKind: StepKind = 'process'): StepKind {
+  const t = text.trim()
+  if (!t) return defaultKind
+  if (t.includes('입력') || t.includes('출력') || t.includes('말한다') || t.includes('묻는다') || t.includes('보여준다')) {
+    return 'io'
+  }
+  return defaultKind
+}
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function persistImmediately(nodes: FlowNode[], edges: FlowEdge[], student: StudentInfo) {
@@ -587,16 +600,17 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
   addAlgorithmStep: (text, kind) => {
     const { pastAlgorithm, algorithmSteps } = get()
+    const actualKind = kind === 'process' ? autoDetectKind(text, kind) : kind
     const newStep: AlgorithmStep = {
       id: `step-${Date.now()}`,
       text: text.trim() || '새 단계',
-      kind,
-      ...(kind === 'decision'
+      kind: actualKind,
+      ...(actualKind === 'decision'
         ? {
             yesSteps: [],
             noSteps: [],
           }
-        : kind === 'loop'
+        : actualKind === 'loop'
         ? {
             yesSteps: [],
             loopTrigger: 'yes',
@@ -617,11 +631,12 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       return steps.map(step => {
         if (step.id === id) {
           const nextKind = kind || step.kind
+          const actualKind = nextKind === 'process' ? autoDetectKind(text, nextKind) : nextKind
           return {
             ...step,
             text,
-            kind: nextKind,
-            ...(nextKind === 'decision'
+            kind: actualKind,
+            ...(actualKind === 'decision'
               ? {
                   yesSteps: step.yesSteps || [],
                   noSteps: step.noSteps || [],
@@ -717,6 +732,46 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       futureAlgorithm: [],
     })
     if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+  },
+
+  toggleDecision: (id, isDecision) => {
+    const { pastAlgorithm, algorithmSteps } = get()
+    let changed = false
+    const update = (steps: AlgorithmStep[]): AlgorithmStep[] => {
+      return steps.map(step => {
+        if (step.id === id) {
+          if (isDecision && step.kind !== 'decision') {
+            changed = true
+            return {
+              ...step,
+              kind: 'decision',
+              yesSteps: step.yesSteps || [],
+              noSteps: step.noSteps || [],
+            }
+          } else if (!isDecision && step.kind === 'decision') {
+            changed = true
+            const nextStep = { ...step, kind: 'process' as StepKind }
+            delete nextStep.yesSteps
+            delete nextStep.noSteps
+            return nextStep
+          }
+        }
+        return {
+          ...step,
+          ...(step.yesSteps ? { yesSteps: update(step.yesSteps) } : {}),
+          ...(step.noSteps ? { noSteps: update(step.noSteps) } : {}),
+        }
+      })
+    }
+    const nextSteps = update(algorithmSteps)
+    if (changed) {
+      set({
+        algorithmSteps: nextSteps,
+        pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
+        futureAlgorithm: [],
+      })
+      if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+    }
   },
 
   addBranchAlgorithmStep: (parentDecisionId, branch, text, kind) => {
@@ -914,6 +969,143 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
     set({
       algorithmSteps: cleaned,
+      pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
+      futureAlgorithm: [],
+    })
+    if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+  },
+
+  insertStepAfter: (targetId, text, kind) => {
+    const { pastAlgorithm, algorithmSteps } = get()
+    const actualKind = kind === 'process' || !kind ? autoDetectKind(text || '', kind || 'process') : kind
+    const newStep: AlgorithmStep = {
+      id: `step-${Date.now()}`,
+      text: text?.trim() || '',
+      kind: actualKind,
+      ...(actualKind === 'decision'
+        ? { yesSteps: [], noSteps: [] }
+        : actualKind === 'loop'
+        ? { yesSteps: [], loopTrigger: 'yes' }
+        : {}),
+    }
+
+    const insert = (steps: AlgorithmStep[]): AlgorithmStep[] => {
+      const result: AlgorithmStep[] = []
+      for (const s of steps) {
+        const yesList = s.yesSteps ? insert(s.yesSteps) : undefined
+        const noList = s.noSteps ? insert(s.noSteps) : undefined
+        result.push({
+          ...s,
+          ...(yesList ? { yesSteps: yesList } : {}),
+          ...(noList ? { noSteps: noList } : {}),
+        })
+        if (s.id === targetId) {
+          result.push(newStep)
+        }
+      }
+      return result
+    }
+    
+    set({
+      algorithmSteps: insert(algorithmSteps),
+      pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
+      futureAlgorithm: [],
+    })
+    if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+  },
+
+  indentStep: (id) => {
+    const { pastAlgorithm, algorithmSteps } = get()
+
+    // 1. 트리에서 해당 아이템을 제거하고 추출하며, 이전 형제의 하위로 밀어넣는 로직
+    const processIndent = (steps: AlgorithmStep[]): { newSteps: AlgorithmStep[], changed: boolean } => {
+      let changed = false
+      const result: AlgorithmStep[] = []
+      for (let i = 0; i < steps.length; i++) {
+        const s = steps[i]
+        if (s.id === id) {
+          // indent 불가능한 경우 (첫번째 요소거나 이전 형제가 하위를 가질 수 없는 경우)
+          if (i === 0) {
+            result.push(s)
+            continue
+          }
+          const prev = result[i - 1]
+          if (prev.kind === 'decision' || prev.kind === 'loop') {
+            changed = true
+            // 이전 형제의 yesSteps에 추가
+            if (!prev.yesSteps) prev.yesSteps = []
+            prev.yesSteps.push({ ...s })
+            continue
+          } else {
+            // 이전 형제가 decision이 아니면 무시
+            result.push(s)
+            continue
+          }
+        }
+        
+        const yesRes = s.yesSteps ? processIndent(s.yesSteps) : { newSteps: undefined, changed: false }
+        const noRes = s.noSteps ? processIndent(s.noSteps) : { newSteps: undefined, changed: false }
+        if (yesRes.changed || noRes.changed) changed = true
+
+        result.push({
+          ...s,
+          ...(yesRes.newSteps ? { yesSteps: yesRes.newSteps } : {}),
+          ...(noRes.newSteps ? { noSteps: noRes.newSteps } : {}),
+        })
+      }
+      return { newSteps: result, changed }
+    }
+
+    const { newSteps, changed } = processIndent(algorithmSteps)
+    if (changed) {
+      set({
+        algorithmSteps: newSteps,
+        pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
+        futureAlgorithm: [],
+      })
+      if (get().isAutoSyncEnabled) get().generateFlowchartFromAlgorithm()
+    }
+  },
+
+  outdentStep: (id) => {
+    const { pastAlgorithm, algorithmSteps } = get()
+    
+    const processOutdent = (steps: AlgorithmStep[]): { newSteps: AlgorithmStep[], extracted: AlgorithmStep | null } => {
+      let extractedStep: AlgorithmStep | null = null
+      const result: AlgorithmStep[] = []
+      
+      for (let i = 0; i < steps.length; i++) {
+        const s = steps[i]
+        if (s.id === id) {
+          extractedStep = { ...s }
+          continue // 현재 레벨에서 제거
+        }
+        
+        const yesRes = s.yesSteps ? processOutdent(s.yesSteps) : { newSteps: undefined, extracted: null }
+        const noRes = s.noSteps ? processOutdent(s.noSteps) : { newSteps: undefined, extracted: null }
+        
+        const updatedStep = {
+          ...s,
+          ...(yesRes.newSteps ? { yesSteps: yesRes.newSteps } : {}),
+          ...(noRes.newSteps ? { noSteps: noRes.newSteps } : {}),
+        }
+        result.push(updatedStep)
+        
+        // 자식에서 추출된 노드가 있다면 현재 레벨(부모의 다음)에 삽입
+        if (yesRes.extracted) result.push(yesRes.extracted)
+        if (noRes.extracted) result.push(noRes.extracted)
+      }
+      
+      return { newSteps: result, extracted: extractedStep }
+    }
+
+    const { newSteps } = processOutdent(algorithmSteps)
+    // 최상위에서 extracted되었다면 이미 root에 있으므로 무시 (변화 없음)
+    
+    // 만약 뭔가 변경되었다면 (즉, 자식 레벨에서 추출되어 부모 레벨로 추가된 경우)
+    // 최상위 배열 길이가 달라졌거나 내부가 변함
+    set({
+      algorithmSteps: newSteps,
       pastAlgorithm: pushAlgorithmHistory(pastAlgorithm, algorithmSteps),
       futureAlgorithm: [],
     })

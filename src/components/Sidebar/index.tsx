@@ -16,13 +16,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
   }, [])
   return (
     <aside
-      className="flex flex-col gap-1 bg-sidebar w-52 min-w-[13rem] h-full border-r border-slate-100 overflow-y-auto"
+      className="flex flex-col gap-1 bg-sidebar w-52 min-w-[13rem] h-full border-r border-slate-200 overflow-y-auto z-10"
       style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.05)' }}
       aria-label="도형 팔레트"
     >
       <div className="px-4 pt-5 pb-2">
-        <h2 className="text-sm font-bold text-text-primary">📦 순서도 기호</h2>
-        <p className="text-[11px] text-text-placeholder mt-0.5">기호를 캔버스로 끌어다 놓으세요!</p>
+        <h2 className="text-sm font-bold text-slate-800">📦 순서도 기호</h2>
       </div>
       <div className="px-2 pb-4 flex flex-col gap-1">
         {NODE_KINDS_ORDER.map(kind => (

@@ -1,10 +1,8 @@
 import React from 'react'
 import { Button } from '../ui/Button'
 import { useFlowStore } from '../../store/flowStore'
-import { useReactFlow } from '@xyflow/react'
 
 interface ToolbarProps {
-  onClearClick: () => void
   onValidateClick: () => void
   onSimulateClick: () => void
   onToggleSidebar?: () => void
@@ -12,15 +10,10 @@ interface ToolbarProps {
 }
 
 /** 상단 툴바: 앱 타이틀 + 주요 액션 버튼들 */
-export const Toolbar: React.FC<ToolbarProps> = ({ onClearClick, onValidateClick, onSimulateClick, onToggleSidebar, onToggleRightPanel }) => {
-  const past = useFlowStore(s => s.past)
-  const future = useFlowStore(s => s.future)
-  const undo = useFlowStore(s => s.undo)
-  const redo = useFlowStore(s => s.redo)
+export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateClick, onToggleSidebar, onToggleRightPanel }) => {
   const simStatus = useFlowStore(s => s.simulation.status)
   const isAlgorithmPanelOpen = useFlowStore(s => s.isAlgorithmPanelOpen)
   const toggleAlgorithmPanel = useFlowStore(s => s.toggleAlgorithmPanel)
-  const { fitView } = useReactFlow()
 
   const isSimRunning = simStatus === 'running' || simStatus === 'waiting'
 
@@ -83,62 +76,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onClearClick, onValidateClick,
           {isAlgorithmPanelOpen ? 'ON' : 'OFF'}
         </span>
       </button>
-
-      <div className="w-px h-6 bg-slate-200 mx-0.5 flex-shrink-0" />
-
-      {/* Undo / Redo */}
-      <Button
-        id="btn-undo"
-        variant="ghost"
-        size="sm"
-        onClick={undo}
-        disabled={past.length === 0}
-        title="실행 취소 (Ctrl+Z)"
-        icon={<span className="text-sm">↩</span>}
-        className="px-2 py-1 text-xs font-bold flex-shrink-0"
-      >
-        <span className="hidden sm:inline">되돌리기</span>
-      </Button>
-      <Button
-        id="btn-redo"
-        variant="ghost"
-        size="sm"
-        onClick={redo}
-        disabled={future.length === 0}
-        title="다시 실행 (Ctrl+Y)"
-        icon={<span className="text-sm">↪</span>}
-        className="px-2 py-1 text-xs font-bold flex-shrink-0"
-      >
-        <span className="hidden sm:inline">다시 실행</span>
-      </Button>
-
-      <div className="w-px h-6 bg-slate-200 mx-0.5 flex-shrink-0" />
-
-      {/* Fit View */}
-      <Button
-        id="btn-fitview"
-        variant="ghost"
-        size="sm"
-        onClick={() => fitView({ padding: 0.15, duration: 400 })}
-        title="화면에 맞추기"
-        icon={<span className="text-sm">⊡</span>}
-        className="px-2 py-1 text-xs font-bold flex-shrink-0"
-      >
-        <span className="hidden md:inline">전체 보기</span>
-      </Button>
-
-      {/* Clear */}
-      <Button
-        id="btn-clear"
-        variant="ghost"
-        size="sm"
-        onClick={onClearClick}
-        title="캔버스 초기화"
-        icon={<span className="text-sm">🗑</span>}
-        className="px-2 py-1 text-xs font-bold flex-shrink-0"
-      >
-        <span className="hidden md:inline">초기화</span>
-      </Button>
 
       <div className="flex-1 min-w-[8px]" />
 
