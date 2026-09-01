@@ -40,6 +40,15 @@ export const NodeCard: React.FC<NodeCardProps> = ({ kind, onOpenHelp }) => {
   const onDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/flowchart-node-kind', kind)
     e.dataTransfer.effectAllowed = 'move'
+
+    // 기본 HTML5 드래그 이미지 제거 (투명 이미지 사용)
+    const img = new Image()
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    e.dataTransfer.setDragImage(img, 0, 0)
+
+    // Canvas.tsx에서 onDragOver 시점에 참조하기 위해 전역 변수에 종류 저장
+    ;(window as any).__draggedKind = kind
+    ;(window as any).__draggedItemType = 'node'
   }, [kind])
 
   return (
@@ -49,7 +58,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({ kind, onOpenHelp }) => {
       className="group flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-200 hover:bg-slate-50 cursor-grab active:cursor-grabbing transition-all duration-200 hover:scale-105 hover:shadow-md select-none"
       title={`${config.label} 드래그해서 캔버스에 배치`}
     >
-      {SHAPE_PREVIEW[kind]}
+      <div className="drag-shape-preview flex items-center justify-center">
+        {SHAPE_PREVIEW[kind]}
+      </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full">
         <div></div>
         <span className="text-xs font-bold text-text-primary leading-tight text-center">{config.label}</span>

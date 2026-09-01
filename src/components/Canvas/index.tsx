@@ -17,6 +17,7 @@ import { nodeTypes } from '../nodes'
 import { edgeTypes } from '../edges'
 import { OnboardingGuide } from './OnboardingGuide'
 import { TrashBin } from './TrashBin'
+import { SnapGuides } from './SnapGuides'
 import { NODE_CONFIGS, SNAP_GRID } from '../../constants/nodeConfig'
 import { isStartLabel } from '../../utils/graph'
 import type { NodeKind, FlowNode } from '../../types'
@@ -46,11 +47,14 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     addNode, removeNode, removeEdge, deleteSelectedElements, setIsDraggingEdgeEndpoint,
   } = useFlowStore()
 
+  type DragPreviewData = { x: number; y: number; type: 'node'; kind: NodeKind } | { x: number; y: number; type: 'edge' }
   const [isOverTrash, setIsOverTrash] = useState(false)
+  const [dragPreview, setDragPreview] = useState<DragPreviewData | null>(null)
   const connectingInfoRef = useRef<ConnectingInfo | null>(null)
   // onReconnect(성공) 가 실행됐는지 추적 → onConnectEnd 이중처리 방지
   const reconnectFiredRef = useRef(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null)
   const { screenToFlowPosition } = useReactFlow()
   const isEmpty = nodes.length === 0
 
@@ -64,15 +68,42 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     }
   }, [edges])
 
-  // 드래그 오버 허용
+  // 드래그 오버 허용 및 미리보기 위치 갱신
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
+
+    const itemType = (window as any).__draggedItemType
+    if (itemType === 'node') {
+      const kind = (window as any).__draggedKind as NodeKind | undefined
+      if (kind) {
+        const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        const config = NODE_CONFIGS[kind]
+        const w = config?.width || 140
+        const h = config?.height || 60
+        const snapX = Math.round((position.x - w / 2) / SNAP_GRID[0]) * SNAP_GRID[0]
+        const snapY = Math.round((position.y - h / 2) / SNAP_GRID[1]) * SNAP_GRID[1]
+        
+        setDragPreview({ x: snapX, y: snapY, type: 'node', kind })
+      }
+    } else if (itemType === 'edge') {
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      const dropX = Math.round(position.x / SNAP_GRID[0]) * SNAP_GRID[0]
+      const dropY = Math.round(position.y / SNAP_GRID[1]) * SNAP_GRID[1]
+      setDragPreview({ x: dropX, y: dropY, type: 'edge' })
+    }
+  }, [screenToFlowPosition])
+
+  const onDragLeave = useCallback(() => {
+    setDragPreview(null)
   }, [])
 
   // 팔레트에서 드롭
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
+    setDragPreview(null)
+    ;(window as any).__draggedKind = null
+    ;(window as any).__draggedItemType = null
 
     const itemType = e.dataTransfer.getData('application/flowchart-item-type')
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
@@ -114,7 +145,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
       addNode({
         id: a2Id,
         type: 'anchor',
-        position: { x: dropX, y: dropY + 100 },
+        position: { x: dropX + 100, y: dropY },
         data: { label: '', kind: 'process' },
         zIndex: 50,
       })
@@ -438,20 +469,28 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     )
   }, [])
 
-  // 노드 드래그 시작 시 흐름선 끝점이면 즉시 핸들 표시
+  // 노드 드래그 시작 시 흐름선 끝점이면 즉시 핸들 표시, 일반 도형이면 즉시 가이드라인 활성화
   const onNodeDragStart = useCallback((_event: React.MouseEvent, node: FlowNode) => {
     if (node.type === 'anchor' || node.type === 'edge-node') {
       setIsDraggingEdgeEndpoint(true)
+    } else {
+      setDraggingNodeId(node.id)
     }
   }, [setIsDraggingEdgeEndpoint])
 
-  // 노드 드래그 중 휴지통 위인지 감지
-  const onNodeDrag = useCallback((event: React.MouseEvent) => {
+  // 노드 드래그 중 휴지통 감지 + 정렬 가이드라인 업데이트
+  const onNodeDrag = useCallback((event: React.MouseEvent, node: FlowNode) => {
     setIsOverTrash(checkIsOverTrash(event))
+    if (node.type !== 'anchor' && node.type !== 'edge-node') {
+      setDraggingNodeId(node.id)
+    }
   }, [checkIsOverTrash])
 
   // 노드 드래그 완료 처리 (휴지통 삭제 및 앵커 노드 도형 자동 Snap 연결)
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: FlowNode) => {
+    // 정렬 가이드라인 초기화
+    setDraggingNodeId(null)
+
     // 1. 휴지통 위치에 놓은 경우 삭제
     if (checkIsOverTrash(event)) {
       removeNode(node.id)
@@ -499,6 +538,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
         edgesFocusable={true}
         reconnectRadius={30}
         onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
         onDrop={onDrop}
         onNodeDragStart={onNodeDragStart as unknown as OnNodeDrag<FlowNode>}
         onNodeDrag={onNodeDrag as unknown as OnNodeDrag<FlowNode>}
@@ -538,6 +578,8 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
           showInteractive
         />
       </ReactFlow>
+
+      <SnapGuides draggingNodeId={draggingNodeId} dragPreview={dragPreview} />
 
       <TrashBin
         isOver={isOverTrash}

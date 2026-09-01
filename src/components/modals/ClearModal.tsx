@@ -9,7 +9,7 @@ interface ClearModalProps {
 }
 
 export const ClearModal: React.FC<ClearModalProps> = ({ isOpen, onClose, onConfirm }) => (
-  <Modal isOpen={isOpen} onClose={onClose} title="🗑 캔버스 초기화">
+  <Modal isOpen={isOpen} onClose={onClose} title="🗑 캔버스 지우기">
     <div className="flex flex-col gap-4">
       <p className="text-sm text-text-primary leading-relaxed">
         캔버스의 모든 도형과 화살표가 지워져요.<br />
@@ -18,7 +18,7 @@ export const ClearModal: React.FC<ClearModalProps> = ({ isOpen, onClose, onConfi
       <div className="flex gap-2 justify-end">
         <Button id="btn-clear-cancel" variant="secondary" onClick={onClose}>취소</Button>
         <Button id="btn-clear-confirm" variant="danger" onClick={() => { onConfirm(); onClose() }}>
-          초기화하기
+          지우기
         </Button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { useFlowStore } from '../../store/flowStore'
 import {
@@ -33,6 +33,25 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
   const [isExporting, setIsExporting] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('INTEGRATED_PDF')
   const [previewMode, setPreviewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH'>('FIT_PAGE')
+  
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [fitScale, setFitScale] = useState(1)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect
+      const scaleW = width / 794
+      const scaleH = height / 1123
+      if (previewMode === 'FIT_WIDTH') {
+        setFitScale(scaleW * 0.95) // 5% margin for width
+      } else {
+        setFitScale(Math.min(scaleW, scaleH) * 0.95) // Fit to page
+      }
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [previewMode, selectedFormat])
 
   const showToast = (msg: string) => {
     setToastMessage(msg)
@@ -60,11 +79,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
         showToast('순서도 PDF 다운로드 완료')
       } else if (selectedFormat === 'INTEGRATED_PNG') {
         if (!previewA4Ref.current) return
-        await exportPreviewDom('png', previewA4Ref.current, student, '', true, true)
+        await exportPreviewDom('png', previewA4Ref.current, student, '', true, false)
         showToast('통합 PNG 다운로드 완료')
       } else if (selectedFormat === 'INTEGRATED_PDF') {
         if (!previewA4Ref.current) return
-        await exportPreviewDom('pdf', previewA4Ref.current, student, '', true, true)
+        await exportPreviewDom('pdf', previewA4Ref.current, student, '', true, false)
         showToast('통합 PDF 다운로드 완료')
       }
     } catch {
@@ -144,8 +163,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
             )}
           </div>
 
-          <div className={`w-full md:w-[65%] flex flex-col items-center bg-slate-100/80 border border-slate-200 rounded-2xl p-6 relative ${previewMode === 'FIT_WIDTH' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
-            <div className="absolute top-4 left-6 flex items-center gap-2 z-10">
+          <div className={`w-full md:w-[65%] flex flex-col bg-slate-100/80 border border-slate-200 rounded-2xl overflow-hidden`}>
+            {/* Header Area */}
+            <div className="w-full flex items-center gap-2 p-4 border-b border-slate-200 bg-white/50 shrink-0 z-10">
               <div className="px-3 py-1 bg-white/80 backdrop-blur text-slate-500 text-xs font-bold rounded-full border border-slate-200 shadow-sm">
                 미리보기
               </div>
@@ -157,26 +177,39 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
               </button>
             </div>
             
-            <div className={`w-full flex-1 flex flex-col items-center ${previewMode === 'FIT_PAGE' ? 'justify-center min-h-0' : 'justify-start mt-10'}`}>
-              {isIntegrated && (
-                <div
-                  ref={previewA4Ref}
-                  className="bg-white shadow-xl flex flex-col relative shrink-0"
-                  style={{
-                    width: previewMode === 'FIT_WIDTH' ? '100%' : 'auto',
-                    height: previewMode === 'FIT_PAGE' ? '100%' : 'auto',
-                    maxHeight: previewMode === 'FIT_PAGE' ? '100%' : 'none',
-                    maxWidth: previewMode === 'FIT_WIDTH' ? '1000px' : '100%',
-                    aspectRatio: '297 / 210',
-                    padding: '5% 4%',
-                  }}
-                >
-                <div className="flex flex-col gap-2 mb-6 border-b-2 border-slate-800 pb-4 shrink-0">
-                  <h1 className="text-3xl font-black text-slate-800 text-center tracking-tight">
+            {/* Scroll Area */}
+            <div className={`w-full flex-1 relative ${previewMode === 'FIT_WIDTH' ? 'overflow-auto' : 'overflow-hidden'}`}>
+              <div ref={containerRef} className={`w-full min-h-full flex flex-col items-center ${previewMode === 'FIT_PAGE' ? 'justify-center' : 'justify-start pt-6'}`}>
+                {isIntegrated && (
+                  <div style={{
+                    width: `${794 * fitScale}px`,
+                    height: `${1123 * fitScale}px`,
+                    position: 'relative',
+                    flexShrink: 0
+                  }}>
+                    <div
+                      style={{
+                        transform: `scale(${fitScale})`,
+                        transformOrigin: 'top left',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                      }}
+                    >
+                  <div
+                    ref={previewA4Ref}
+                    className="bg-white shadow-xl flex flex-col relative shrink-0"
+                    style={{
+                      width: '794px',
+                      height: '1123px',
+                      padding: '40px 45px',
+                    }}
+                  >
+                <div className="flex flex-col gap-2 mb-6 border-b-2 border-slate-800 pb-4 shrink-0 w-full">
+                  <h1 className="text-2xl font-black text-slate-800 text-center tracking-tight">
                     {student.title || '순서도 알고리즘'}
                   </h1>
-                  <div className="flex justify-between items-end mt-4 text-sm font-bold text-slate-600 px-4">
-                    <span>수행평가 제출용 (A4)</span>
+                  <div className="flex justify-end mt-4 text-sm font-bold text-slate-600 px-2">
                     <div className="flex gap-4 bg-slate-50 py-1.5 px-4 rounded-lg border border-slate-200">
                       <span>{student.grade ? `${student.grade}학년` : '___학년'}</span>
                       <span>{student.classNum ? `${student.classNum}반` : '___반'}</span>
@@ -187,24 +220,24 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                 </div>
 
                 <div className="flex flex-row gap-6 flex-1 min-h-0">
-                  <div className="flex flex-col gap-2 flex-1 min-w-0">
-                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2">
+                  <div className="flex flex-col flex-1 min-w-0 bg-white p-5 rounded-xl border-2 border-slate-300 shadow-md">
+                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 mb-3">
                       1. 자연어 알고리즘
                     </h2>
-                    <div className="flex-1 text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-100 overflow-hidden">
+                    <div className="flex-1 text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 overflow-hidden bg-slate-50 p-4 rounded-lg border border-slate-200">
                       {generateAlgorithmText(algorithmSteps)}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 flex-1 min-w-0">
-                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 shrink-0">
-                      2. 순서도
+                  <div className="flex flex-col flex-1 min-w-0 bg-white p-5 rounded-xl border-2 border-slate-300 shadow-md">
+                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 mb-3 shrink-0">
+                      2. 순서도 알고리즘
                     </h2>
-                    <div className="flex-1 flex items-center justify-center relative border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 p-2 min-h-0">
+                    <div className="flex-1 flex items-start justify-center relative min-h-0 bg-slate-50 rounded-lg border border-slate-200 p-2">
                       {flowchartImage ? (
                         <img
                           src={flowchartImage}
                           alt="Flowchart Preview"
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-contain object-top drop-shadow-sm"
                         />
                       ) : (
                         <span className="text-slate-400 text-sm font-bold">순서도 스냅샷 없음</span>
@@ -213,7 +246,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                   </div>
                 </div>
               </div>
-              )}
+            </div>
+            </div>
+            )}
 
               {isFlowchart && (
                 <div 
@@ -224,8 +259,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                     <h1 className="text-2xl font-black text-slate-800 text-center tracking-tight">
                       {student.title || '순서도 알고리즘'}
                     </h1>
-                    <div className="flex justify-between items-end mt-4 text-sm font-bold text-slate-600 px-2">
-                      <span>순서도 알고리즘</span>
+                    <div className="flex justify-end mt-4 text-sm font-bold text-slate-600 px-2">
                       <div className="flex gap-4 bg-slate-50 py-1.5 px-4 rounded-lg border border-slate-200">
                         <span>{student.grade ? `${student.grade}학년` : '___학년'}</span>
                         <span>{student.classNum ? `${student.classNum}반` : '___반'}</span>
@@ -233,6 +267,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                         <span>{student.name || '이름: ____________'}</span>
                       </div>
                     </div>
+                  </div>
+                  <div className="w-full text-left mb-2 px-2">
+                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 shrink-0">
+                      순서도 알고리즘
+                    </h2>
                   </div>
                   <div className="w-full flex justify-center py-4 flex-1 min-h-0">
                     <div className="border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 p-4 inline-flex items-center justify-center w-full max-w-[70%] max-h-[400px]">
@@ -256,8 +295,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                     <h1 className="text-2xl font-black text-slate-800 text-center tracking-tight">
                       {student.title || '순서도 알고리즘'}
                     </h1>
-                    <div className="flex justify-between items-end mt-4 text-sm font-bold text-slate-600 px-2">
-                      <span>자연어 알고리즘</span>
+                    <div className="flex justify-end mt-4 text-sm font-bold text-slate-600 px-2">
                       <div className="flex gap-4 bg-slate-50 py-1.5 px-4 rounded-lg border border-slate-200">
                         <span>{student.grade ? `${student.grade}학년` : '___학년'}</span>
                         <span>{student.classNum ? `${student.classNum}반` : '___반'}</span>
@@ -266,12 +304,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                       </div>
                     </div>
                   </div>
-                  <div className={`text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 font-mono ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''}`}>
+                  <div className="w-full text-left mb-2 px-2">
+                    <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 shrink-0">
+                      자연어 알고리즘
+                    </h2>
+                  </div>
+                  <div className={`text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 font-mono ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''} bg-slate-50 p-4 rounded-lg border border-slate-100`}>
                     {generateAlgorithmText(algorithmSteps, student)}
                   </div>
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
 

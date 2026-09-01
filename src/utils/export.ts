@@ -127,7 +127,7 @@ export async function exportPreviewDom(
   isA4: boolean = true,
   isLandscape: boolean = false
 ): Promise<void> {
-  const styleOptions = {
+  const styleOptions: any = {
     quality: 1,
     pixelRatio: 4,
     backgroundColor: '#FFFFFF',

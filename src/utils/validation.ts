@@ -114,6 +114,7 @@ function checkIncompleteEdges(nodes: FlowNode[], edges: FlowEdge[]): ValidationI
       id: 'incomplete-edges',
       severity: 'error',
       message: `어디에도 연결되지 않고 허공에 끊어진 흐름선이 ${incompleteEdges.length}개 있어요. 흐름선의 양끝을 도형에 정확히 연결하거나 불필요한 선을 삭제해주세요!`,
+      edgeIds: incompleteEdges.map(e => e.id),
     })
   }
   return issues

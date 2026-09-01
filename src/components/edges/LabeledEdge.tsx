@@ -3,6 +3,8 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  MarkerType,
+  Position,
   type EdgeProps,
 } from '@xyflow/react'
 import { EDGE_STYLE, SELECTED_EDGE_STYLE, SIM_ACTIVE_EDGE_STYLE } from '../../constants/nodeConfig'
@@ -11,6 +13,7 @@ import { useFlowStore } from '../../store/flowStore'
 /** 커스텀 엣지: 깔끔한 화살표선 + 선택 시 작고 빨간 삭제 버튼 표시 */
 export const LabeledEdge: React.FC<EdgeProps> = memo(({
   id,
+  source, target,
   sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition,
   label,
@@ -20,15 +23,42 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
 }) => {
   const removeEdge = useFlowStore(s => s.removeEdge)
   const updateEdgeLabel = useFlowStore(s => s.updateEdgeLabel)
+  const sourceNode = useFlowStore(s => s.nodes.find(n => n.id === source))
+  const targetNode = useFlowStore(s => s.nodes.find(n => n.id === target))
   const [isPopupOpen, setIsPopupOpen] = useState(false)
 
+  let sp = sourcePosition;
+  let tp = targetPosition;
+
+  // React Flow의 Handle DOM 측정 오차를 무시하고 앵커 노드의 정확한 정중앙 좌표 사용
+  const sX = sourceNode?.type === 'anchor' || sourceNode?.type === 'edge-node' ? sourceNode.position.x + 8 : sourceX;
+  const sY = sourceNode?.type === 'anchor' || sourceNode?.type === 'edge-node' ? sourceNode.position.y + 8 : sourceY;
+  const tX = targetNode?.type === 'anchor' || targetNode?.type === 'edge-node' ? targetNode.position.x + 8 : targetX;
+  const tY = targetNode?.type === 'anchor' || targetNode?.type === 'edge-node' ? targetNode.position.y + 8 : targetY;
+
+  if (sourceNode?.type === 'anchor' || sourceNode?.type === 'edge-node') {
+    if (Math.abs(tX - sX) > Math.abs(tY - sY)) {
+      sp = tX > sX ? Position.Right : Position.Left;
+    } else {
+      sp = tY > sY ? Position.Bottom : Position.Top;
+    }
+  }
+  if (targetNode?.type === 'anchor' || targetNode?.type === 'edge-node') {
+    if (Math.abs(sX - tX) > Math.abs(sY - tY)) {
+      tp = sX > tX ? Position.Right : Position.Left;
+    } else {
+      tp = sY > tY ? Position.Bottom : Position.Top;
+    }
+  }
+
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
+    sourceX: sX, sourceY: sY, sourcePosition: sp,
+    targetX: tX, targetY: tY, targetPosition: tp,
   })
 
   const isSimActive = (data as Record<string, unknown>)?.isSimActive as boolean | undefined
   const isDecisionEdge = (data as Record<string, unknown>)?.isDecisionEdge as boolean | undefined
+  const isErrorFlashing = (data as Record<string, unknown>)?.isErrorFlashing as boolean | undefined
 
   const style = isSimActive
     ? SIM_ACTIVE_EDGE_STYLE
@@ -43,15 +73,30 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
 
   return (
     <>
+      <defs>
+        <marker id={`arrow-error`} markerWidth="12.5" markerHeight="12.5" viewBox="-10 -10 20 20" refX="0" refY="0" orient="auto-start-reverse">
+          <polygon strokeLinecap="round" strokeLinejoin="round" points="-5,-4 0,0 -5,4 -5,-4" fill="#EF4444" stroke="#EF4444" strokeWidth="1" />
+        </marker>
+        <marker id={`arrow-selected`} markerWidth="12.5" markerHeight="12.5" viewBox="-10 -10 20 20" refX="0" refY="0" orient="auto-start-reverse">
+          <polygon strokeLinecap="round" strokeLinejoin="round" points="-5,-4 0,0 -5,4 -5,-4" fill="#3B82F6" stroke="#3B82F6" strokeWidth="1" />
+        </marker>
+      </defs>
       <BaseEdge
         id={id}
         path={edgePath}
-        markerEnd={markerEnd}
+        markerEnd={
+          isErrorFlashing 
+            ? 'url(#arrow-error)'
+            : selected
+            ? 'url(#arrow-selected)'
+            : markerEnd
+        }
         interactionWidth={30}
         style={{
           ...style,
-          strokeWidth: selected ? 3 : style.strokeWidth,
-          stroke: selected ? '#3B82F6' : style.stroke,
+          strokeWidth: isErrorFlashing ? 4 : selected ? 3 : style.strokeWidth,
+          stroke: isErrorFlashing ? '#EF4444' : selected ? '#3B82F6' : style.stroke,
+          filter: isErrorFlashing ? 'drop-shadow(0 0 12px rgba(239,68,68,0.6))' : 'none',
           transition: 'all 0.2s',
           cursor: 'pointer',
         }}

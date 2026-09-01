@@ -21,6 +21,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
 
   const isActive = data.isSimActive
   const isVisited = data.isSimVisited
+  const isErrorFlashing = data.isErrorFlashing
 
   useEffect(() => { setDraft(data.label) }, [data.label])
 
@@ -34,13 +35,23 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
     }
   }, [data])
 
+  // Textarea 자동 높이 조절
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.style.height = '0px'
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px'
+    }
+  }, [draft, editing])
+
   const commitEdit = useCallback(() => {
     setEditing(false)
     if (draft.trim() !== data.label) updateNodeLabel(id, draft.trim() || data.label)
   }, [draft, data.label, id, updateNodeLabel])
 
-  const borderColor = isActive ? '#FBBF24' : isVisited ? '#10B981' : selected ? '#3B82F6' : config.colors.border
-  const glow = isActive
+  const borderColor = isErrorFlashing ? '#EF4444' : isActive ? '#FBBF24' : isVisited ? '#10B981' : selected ? '#3B82F6' : config.colors.border
+  const glow = isErrorFlashing
+    ? 'drop-shadow(0 0 12px rgba(239,68,68,0.6))'
+    : isActive
     ? 'drop-shadow(0 0 8px #FBBF24)'
     : selected
     ? 'drop-shadow(0 0 6px #3B82F6)'
@@ -58,9 +69,9 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
 
     if (totalLen > 35 || lineCount >= 5 || maxLineLen > 16) return 'text-[10px] leading-tight font-bold'
     if (totalLen > 22 || lineCount >= 4 || maxLineLen > 11) return 'text-[11.5px] leading-tight font-bold'
-    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 7) return 'text-[14px] leading-tight font-bold'
-    if (totalLen > 6) return 'text-[16.5px] leading-snug font-extrabold'
-    return 'text-[19px] sm:text-[20px] leading-snug font-black tracking-tight'
+    
+    // 기본 크기를 두 줄(약 14px)에 맞춤
+    return 'text-[14px] leading-tight font-bold'
   }
 
   return (
@@ -76,7 +87,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
           points={pts}
           fill={config.colors.bg}
           stroke={borderColor}
-          strokeWidth={2}
+          strokeWidth={isErrorFlashing ? 4 : 2}
           style={{
             transformOrigin: 'center',
             transition: 'all 0.2s',
@@ -90,7 +101,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
         {editing ? (
           <textarea
             ref={inputRef}
-            rows={Math.max(1, draft.split('\n').length)}
+            rows={1}
             value={draft}
             placeholder={config.placeholder}
             onChange={e => setDraft(e.target.value)}
@@ -101,7 +112,7 @@ export const DecisionNode: React.FC<NodeProps & { data: FlowNodeData }> = memo((
             }}
             onMouseDown={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
-            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft || config.placeholder)}`}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text overflow-hidden ${getFontSizeClass(draft || config.placeholder)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

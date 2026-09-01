@@ -32,6 +32,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
   const isActive = data.isSimActive
   const isVisited = data.isSimVisited
   const isAlgoHighlighted = data.isAlgorithmHighlighted
+  const isErrorFlashing = data.isErrorFlashing
 
   useEffect(() => { setDraft(data.label) }, [data.label])
 
@@ -44,6 +45,14 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
       }
     }
   }, [data])
+
+  // Textarea 자동 높이 조절
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.style.height = '0px'
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px'
+    }
+  }, [draft, editing])
 
   const commitEdit = useCallback(() => {
     setEditing(false)
@@ -82,7 +91,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
   const edges = useFlowStore(s => s.edges)
   const isConnectedToSelectedEdge = edges.some(e => e.selected && (e.source === id || e.target === id))
 
-  const borderColor = isAlgoHighlighted
+  const borderColor = isErrorFlashing
+    ? '#EF4444'
+    : isAlgoHighlighted
     ? '#2563EB'
     : isActive
     ? '#FBBF24'
@@ -101,9 +112,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
 
     if (totalLen > 38 || lineCount >= 4 || maxLineLen > 18) return 'text-[11px] leading-tight font-bold'
     if (totalLen > 24 || lineCount >= 3 || maxLineLen > 13) return 'text-[12.5px] leading-tight font-bold'
-    if (totalLen > 14 || lineCount >= 2 || maxLineLen > 8) return 'text-[14.5px] leading-tight font-bold'
-    if (totalLen > 6) return 'text-[17px] leading-snug font-extrabold'
-    return 'text-[20px] sm:text-[21px] leading-snug font-black tracking-tight'
+    
+    // 기본 크기를 두 줄(약 14.5px)에 맞춤
+    return 'text-[14.5px] leading-tight font-bold'
   }
 
   return (
@@ -116,7 +127,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
         background: config.colors.bg,
         border: `2px solid ${borderColor}`,
         pointerEvents: isConnectedToSelectedEdge ? 'none' : 'all',
-        boxShadow: isAlgoHighlighted
+        boxShadow: isErrorFlashing
+          ? '0 0 0 2px #EF4444, 0 0 12px rgba(239, 68, 68, 0.6)'
+          : isAlgoHighlighted
           ? '0 0 0 4px rgba(37, 99, 235, 0.4), 0 0 16px rgba(37, 99, 235, 0.3)'
           : selected
           ? `0 0 0 3px ${borderColor}44, 0 4px 12px rgba(0,0,0,0.12)`
@@ -138,7 +151,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
         {editing ? (
           <textarea
             ref={inputRef}
-            rows={Math.max(1, draft.split('\n').length)}
+            rows={1}
             value={draft}
             placeholder={config.placeholder}
             onChange={e => setDraft(e.target.value)}
@@ -146,7 +159,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode; cl
             onKeyDown={onKeyDown}
             onMouseDown={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
-            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft || config.placeholder)}`}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text overflow-hidden ${getFontSizeClass(draft || config.placeholder)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',

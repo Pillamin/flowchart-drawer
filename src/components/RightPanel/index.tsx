@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import type { LegalType } from '../modals/LegalModal'
 import { useFlowStore } from '../../store/flowStore'
 import { useSimulation } from '../../hooks/useSimulation'
@@ -19,6 +19,14 @@ interface RightPanelProps {
 export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCollapse, onOpenLegalModal, validationResult, onClearValidation }) => {
   const simulation = useFlowStore(s => s.simulation)
   const { chooseDecision, stop } = useSimulation()
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // 실행 로그나 검사 결과가 업데이트 될 때마다 스크롤을 맨 아래로 이동
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [simulation.stepLog, simulation.status, validationResult])
 
   if (isCollapsed) {
     return (
@@ -41,12 +49,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
     const warnings = validationResult.issues.filter(i => i.severity === 'warning')
 
     return (
-      <div className="flex flex-col gap-4 animate-fade-in w-full">
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-slate-800 flex items-center gap-2"><span className="text-lg">🔍</span> 검사 결과</h4>
-          <button onClick={onClearValidation} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕ 닫기</button>
-        </div>
-        
+      <div className="flex flex-col gap-2 animate-fade-in w-full">
+        <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-2"><span className="text-lg">🔍</span> 검사 결과</h4>
         <div className={`flex flex-col gap-2 p-3 rounded-xl border ${validationResult.isValid ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
           <div className="flex items-center gap-2">
             <span className="text-xl">{validationResult.isValid ? '✅' : '❌'}</span>
@@ -60,20 +64,32 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
         </div>
 
         {validationResult.issues.length > 0 && (
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[40vh] pr-1">
-            {[...errors, ...warnings].map(issue => (
-              <div
-                key={issue.id}
-                className={`flex gap-2 p-3 rounded-lg text-sm border ${
-                  issue.severity === 'error'
-                    ? 'bg-red-50/50 border-red-100 text-red-800'
-                    : 'bg-amber-50/50 border-amber-100 text-amber-800'
-                }`}
-              >
-                <span className="flex-shrink-0">{issue.severity === 'error' ? '❌' : '⚠️'}</span>
-                <span className="leading-relaxed text-xs font-medium">{issue.message}</span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-2">
+            {[...errors, ...warnings].map(issue => {
+              const hasNodes = issue.nodeIds && issue.nodeIds.length > 0;
+              const hasEdges = issue.edgeIds && issue.edgeIds.length > 0;
+              const isClickable = hasNodes || hasEdges;
+              return (
+                <div
+                  key={issue.id}
+                  onClick={() => {
+                    if (isClickable) {
+                      useFlowStore.getState().flashErrorElements(issue.nodeIds || [], issue.edgeIds || [])
+                    }
+                  }}
+                  className={`flex gap-2 p-3 rounded-lg text-sm border transition-colors ${
+                    isClickable ? 'cursor-pointer hover:shadow-md' : ''
+                  } ${
+                    issue.severity === 'error'
+                      ? 'bg-red-50/50 border-red-100 text-red-800 hover:bg-red-100'
+                      : 'bg-amber-50/50 border-amber-100 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  <span className="flex-shrink-0">{issue.severity === 'error' ? '❌' : '⚠️'}</span>
+                  <span className="leading-relaxed text-xs font-medium">{issue.message}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -94,11 +110,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
 
     return (
       <div className="flex flex-col gap-4 animate-fade-in w-full h-full">
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-slate-800 flex items-center gap-2"><span className="text-lg">▶</span> 시뮬레이션</h4>
-          <button onClick={stop} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕ 중지</button>
-        </div>
-
+        <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-[-4px]"><span className="text-lg">▶</span> 실행 결과</h4>
         <div className={`flex items-center gap-2 p-3 rounded-xl border ${statusConfig.color}`}>
           <span className="text-xl">{statusConfig.icon}</span>
           <span className="font-bold text-sm">{statusConfig.label}</span>
@@ -124,17 +136,22 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
         )}
 
         {/* Step log */}
-        <div className="flex-1 overflow-y-auto pr-1 flex flex-col-reverse gap-1.5 min-h-[150px]">
-          {[...simulation.stepLog].reverse().map((log, i) => (
-            <div key={i} className={`text-xs px-2 py-1.5 rounded-lg ${i === 0 ? 'bg-blue-50 text-blue-800 font-bold border border-blue-100' : 'text-slate-500'}`}>
-              {log}
-            </div>
-          ))}
-        </div>
+        {simulation.stepLog.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {simulation.stepLog.map((log, i) => {
+              const isNewest = i === simulation.stepLog.length - 1;
+              return (
+                <div key={i} className={`text-xs px-2 py-1.5 rounded-lg ${isNewest ? 'bg-blue-50 text-blue-800 font-bold border border-blue-100' : 'text-slate-500 bg-white border border-slate-100'}`}>
+                  {log}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Finished CTA */}
         {(simulation.status === 'finished' || simulation.status === 'error') && (
-          <div className="mt-2">
+          <div className="mt-2 mb-4">
             <Button id="btn-sim-reset" variant="secondary" size="sm" fullWidth onClick={stop}>
               처음으로 돌아가기
             </Button>
@@ -171,28 +188,27 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
 
       {/* Header - Fixed */}
       <div className="flex items-center justify-between px-3.5 border-b border-slate-200 bg-slate-50/90 shrink-0 gap-2 h-[52px]">
-        <div className="flex items-center gap-2 min-w-0 ml-4">
+        <div className="flex items-center gap-2 min-w-0">
           <span className="text-xl flex-shrink-0">🛠️</span>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">실행 및 디버깅</h2>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isIdle && (
-            <button
-              onClick={handleClear}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              title="내용 삭제"
-            >
-              <span className="text-xs">🗑️</span>
-              <span>지우기</span>
-            </button>
-          )}
+          <button
+            onClick={handleClear}
+            disabled={isIdle}
+            className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-slate-600 disabled:hover:bg-white disabled:hover:border-slate-200 rounded-lg transition-colors text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+            title="내용 삭제"
+          >
+            <span className="text-xs">🗑️</span>
+            <span>지우기</span>
+          </button>
         </div>
       </div>
 
       {/* Content - Scrollable */}
-      <div className="flex-1 flex flex-col overflow-y-auto px-5 py-4 gap-4">
+      <div ref={scrollRef} className="flex-1 flex flex-col overflow-y-auto px-5 py-4 gap-4 scroll-smooth">
         {isIdle && (
           <div className="flex-1 flex items-center justify-center text-slate-400 text-sm font-medium text-center w-full min-h-[200px]">
             <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 border-dashed w-full">
@@ -232,4 +248,3 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
     </aside>
   )
 }
-

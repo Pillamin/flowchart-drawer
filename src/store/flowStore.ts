@@ -61,6 +61,8 @@ interface FlowStore {
   setStudent: (info: Partial<StudentInfo>) => void
   updateSimulation: (sim: Partial<SimulationState>) => void
   resetSimulation: () => void
+  clearSimulationLog: () => void
+  flashErrorElements: (nodeIds: string[], edgeIds?: string[]) => void
   
   // Natural Language Algorithm Actions
   toggleAlgorithmPanel: () => void
@@ -101,22 +103,28 @@ function autoDetectKind(text: string, defaultKind: StepKind = 'process'): StepKi
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-function persistImmediately(nodes: FlowNode[], edges: FlowEdge[], student: StudentInfo) {
+function persistImmediately() {
   if (saveTimer) {
     clearTimeout(saveTimer)
     saveTimer = null
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, student }))
+    const state = useFlowStore.getState()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+      nodes: state.nodes, 
+      edges: state.edges, 
+      student: state.student,
+      algorithmSteps: state.algorithmSteps 
+    }))
   } catch {
     // Storage full or unavailable — silently ignore
   }
 }
 
-function persistToStorage(nodes: FlowNode[], edges: FlowEdge[], student: StudentInfo) {
+function persistToStorage(...args: any[]) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    persistImmediately(nodes, edges, student)
+    persistImmediately()
   }, DEBOUNCE_MS)
 }
 
@@ -127,7 +135,12 @@ if (typeof window !== 'undefined') {
       saveTimer = null
       try {
         const state = useFlowStore.getState()
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes: state.nodes, edges: state.edges, student: state.student }))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+          nodes: state.nodes, 
+          edges: state.edges, 
+          student: state.student,
+          algorithmSteps: state.algorithmSteps 
+        }))
       } catch {}
     }
   })
@@ -137,7 +150,7 @@ function loadFromStorage(): Pick<FlowStore, 'nodes' | 'edges' | 'student'> | nul
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Pick<FlowStore, 'nodes' | 'edges' | 'student'>
+    const parsed = JSON.parse(raw) as Pick<FlowStore, 'nodes' | 'edges' | 'student' | 'algorithmSteps'>
     if (parsed && Array.isArray(parsed.nodes)) {
       parsed.nodes = parsed.nodes.map(n => ({
         ...n,
@@ -595,6 +608,29 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       edges: s.edges.map(e => ({ ...e, data: { ...e.data, isSimActive: false } })),
     }))
   },
+  clearSimulationLog: () => {
+    set(s => ({ simulation: { ...s.simulation, stepLog: [] } }))
+  },
+  flashErrorElements: (nodeIds, edgeIds = []) => {
+    set(s => ({
+      nodes: s.nodes.map(n => 
+        nodeIds.includes(n.id) ? { ...n, data: { ...n.data, isErrorFlashing: true } } : n
+      ),
+      edges: s.edges.map(e =>
+        edgeIds.includes(e.id) ? { ...e, data: { ...e.data, isErrorFlashing: true } } : e
+      )
+    }))
+    setTimeout(() => {
+      set(s => ({
+        nodes: s.nodes.map(n => 
+          nodeIds.includes(n.id) ? { ...n, data: { ...n.data, isErrorFlashing: false } } : n
+        ),
+        edges: s.edges.map(e =>
+          edgeIds.includes(e.id) ? { ...e, data: { ...e.data, isErrorFlashing: false } } : e
+        )
+      }))
+    }, 1000) // 1초간 깜빡임
+  },
 
   // ─── Natural Language Algorithm ──────────────────────────────────────────
   isAlgorithmPanelOpen: true,
@@ -751,18 +787,18 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
         if (step.id === id) {
           if (isDecision && step.kind !== 'decision') {
             changed = true
+            const existingYes = step.yesSteps || []
+            const existingNo = step.noSteps || []
             return {
               ...step,
               kind: 'decision',
-              yesSteps: step.yesSteps || [],
-              noSteps: step.noSteps || [],
+              yesSteps: existingYes.length > 0 ? existingYes : [{ id: `sub-${Date.now()}-y-${Math.random().toString(36).substr(2,4)}`, text: '', kind: 'process' as StepKind }],
+              noSteps: existingNo.length > 0 ? existingNo : [{ id: `sub-${Date.now()}-n-${Math.random().toString(36).substr(2,4)}`, text: '', kind: 'process' as StepKind }],
             }
           } else if (!isDecision && step.kind === 'decision') {
             changed = true
-            const nextStep = { ...step, kind: 'process' as StepKind }
-            delete nextStep.yesSteps
-            delete nextStep.noSteps
-            return nextStep
+            // 체크 해제 시 기존 작성 내용을 유지하기 위해 yesSteps, noSteps를 삭제하지 않음
+            return { ...step, kind: 'process' as StepKind }
           }
         }
         return {
@@ -1801,3 +1837,18 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     set({ algorithmSteps: extractedSteps })
   },
 }))
+
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    useFlowStore.subscribe((state, prevState) => {
+      if (
+        state.nodes !== prevState.nodes ||
+        state.edges !== prevState.edges ||
+        state.algorithmSteps !== prevState.algorithmSteps ||
+        state.student !== prevState.student
+      ) {
+        persistToStorage()
+      }
+    })
+  }, 0)
+}

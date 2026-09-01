@@ -13,6 +13,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
   const onEdgeDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/flowchart-item-type', 'edge')
     e.dataTransfer.effectAllowed = 'move'
+
+    // 투명 드래그 이미지 설정
+    const img = new Image()
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    e.dataTransfer.setDragImage(img, 0, 0)
+
+    ;(window as any).__draggedItemType = 'edge'
   }, [])
   return (
     <aside

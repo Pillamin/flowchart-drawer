@@ -6,13 +6,14 @@ interface ToolbarProps {
   onValidateClick: () => void
   onSimulateClick: () => void
   onExportClick: () => void
+  onClearAllClick?: () => void
   isExportingSnapshot?: boolean
   onToggleSidebar?: () => void
   onToggleRightPanel?: () => void
 }
 
 /** 상단 툴바: 앱 타이틀 + 주요 액션 버튼들 */
-export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateClick, onExportClick, isExportingSnapshot, onToggleSidebar, onToggleRightPanel }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateClick, onExportClick, onClearAllClick, isExportingSnapshot, onToggleSidebar, onToggleRightPanel }) => {
   const simStatus = useFlowStore(s => s.simulation.status)
   const isSimRunning = simStatus === 'running' || simStatus === 'waiting'
   const isAlgorithmPanelOpen = useFlowStore(s => s.isAlgorithmPanelOpen)
@@ -86,6 +87,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateCli
       </div>
       
       <div className="flex-1 min-w-[8px]" />
+
+      {/* Clear All (전체 초기화) */}
+      {onClearAllClick && (
+        <button
+          onClick={onClearAllClick}
+          className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-sm font-extrabold cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+          title="자연어, 순서도, 디버깅 결과를 모두 지우기"
+        >
+          <span className="text-sm">🗑</span>
+          <span className="hidden xl:inline">지우기</span>
+        </button>
+      )}
 
       {/* Validate (검사하기) */}
       <button

@@ -7,6 +7,7 @@ import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
 import { ClearModal } from './components/modals/ClearModal'
 import { ClearAlgorithmModal } from './components/modals/ClearAlgorithmModal'
+import { ClearAllModal } from './components/modals/ClearAllModal'
 import { TemplateModal } from './components/modals/TemplateModal'
 import { ExportModal } from './components/modals/ExportModal'
 import { HelpModal, type HelpTopic } from './components/modals/HelpModal'
@@ -50,6 +51,7 @@ const AppInner: React.FC = () => {
 
   const [showClear, setShowClear] = useState(false)
   const [showAlgorithmClear, setShowAlgorithmClear] = useState(false)
+  const [showClearAll, setShowClearAll] = useState(false)
   const [showTemplate, setShowTemplate] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportSnapshot, setExportSnapshot] = useState<string | null>(null)
@@ -74,13 +76,15 @@ const AppInner: React.FC = () => {
   const future = useFlowStore(s => s.future)
   const undo = useFlowStore(s => s.undo)
   const redo = useFlowStore(s => s.redo)
+  const nodes = useFlowStore(s => s.nodes)
   const student = useFlowStore(s => s.student)
 
   const handleValidate = useCallback(() => {
     setIsDesktopRightPanelCollapsed(false)
+    resetSimulation()
     const result = validate()
     setValidationResult(result)
-  }, [validate])
+  }, [validate, resetSimulation])
 
   const handleSimulate = useCallback(() => {
     setIsDesktopRightPanelCollapsed(false)
@@ -88,10 +92,18 @@ const AppInner: React.FC = () => {
     if (isRunning) {
       stopSim()
     } else {
+      setValidationResult(null)
       resetSimulation()
       startSim()
     }
   }, [simStatus, startSim, stopSim, resetSimulation])
+
+  const handleClearAllConfirm = useCallback(() => {
+    clearAlgorithmSteps()
+    clearCanvas()
+    resetSimulation()
+    setValidationResult(null)
+  }, [clearAlgorithmSteps, clearCanvas, resetSimulation, setValidationResult])
 
   const handleExportClick = async () => {
     if (!canvasRef.current) return
@@ -113,6 +125,7 @@ const AppInner: React.FC = () => {
         onValidateClick={handleValidate}
         onSimulateClick={handleSimulate}
         onExportClick={handleExportClick}
+        onClearAllClick={() => setShowClearAll(true)}
         isExportingSnapshot={isExportingSnapshot}
         onToggleSidebar={() => {
           setMobileSidebarOpen(prev => !prev)
@@ -160,8 +173,8 @@ const AppInner: React.FC = () => {
               <button onClick={() => { fitView({ padding: 0.15, duration: 400 }) }} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="화면에 맞추기">
                 <span className="text-xs">⊡</span><span className="hidden sm:inline">전체보기</span>
               </button>
-              <button onClick={() => setShowClear(true)} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="캔버스 초기화">
-                <span className="text-xs">🗑</span><span className="hidden sm:inline">초기화</span>
+              <button onClick={() => setShowClear(true)} disabled={nodes.length === 0} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-slate-600 disabled:hover:border-slate-200 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="캔버스 지우기">
+                <span className="text-xs">🗑</span><span className="hidden sm:inline">지우기</span>
               </button>
             </div>
           </div>
@@ -201,6 +214,11 @@ const AppInner: React.FC = () => {
         isOpen={showAlgorithmClear}
         onClose={() => setShowAlgorithmClear(false)}
         onConfirm={clearAlgorithmSteps}
+      />
+      <ClearAllModal
+        isOpen={showClearAll}
+        onClose={() => setShowClearAll(false)}
+        onConfirm={handleClearAllConfirm}
       />
       <TemplateModal
         isOpen={showTemplate}
