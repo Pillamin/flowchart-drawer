@@ -121,7 +121,7 @@ function persistImmediately() {
   }
 }
 
-function persistToStorage(...args: any[]) {
+function persistToStorage(..._args: any[]) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     persistImmediately()
@@ -578,13 +578,13 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
   clearCanvas: () => {
     const { nodes, edges, past } = get()
     set({ nodes: [], edges: [], past: pushCanvasHistory(past, nodes, edges), future: [], student: DEFAULT_STUDENT })
-    persistImmediately([], [], DEFAULT_STUDENT)
+    persistImmediately()
   },
 
   loadTemplate: (nodes, edges) => {
     const { nodes: cur, edges: curE, past } = get()
     set({ nodes, edges, past: pushCanvasHistory(past, cur, curE), future: [] })
-    persistImmediately(nodes, edges, get().student)
+    persistImmediately()
   },
 
   setStudent: (info) => {
