@@ -3,7 +3,6 @@ import { addEdge, applyNodeChanges, applyEdgeChanges, reconnectEdge, MarkerType 
 import type { NodeChange, EdgeChange, Connection } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import type { FlowNode, FlowEdge, StudentInfo, SimulationState, AlgorithmStep, NodeKind, StepKind } from '../types'
-import { DECISION_LABELS } from '../constants/nodeConfig'
 import { isStartLabel } from '../utils/graph'
 
 const STORAGE_KEY = 'flowchart-drawer-v3'
@@ -46,8 +45,9 @@ interface FlowStore {
   onConnect: (connection: Connection) => void
   onReconnect: (oldEdge: FlowEdge, newConnection: Connection) => void
   updateNodePosition: (id: string, position: { x: number; y: number }) => void
-  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, targetHandleId?: string) => void
+  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, snapHandleId?: string) => void
   updateNodeLabel: (id: string, label: string) => void
+  updateEdgeLabel: (id: string, label: string | null) => void
   addNode: (node: FlowNode) => void
   removeNode: (id: string) => void
   removeEdge: (id: string) => void
@@ -282,12 +282,11 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
     if (finalSource === finalTarget) return // prevent self-loops
 
-    // 판단 노드에서 뽑을 때 자동 라벨 부여 (최초 source 기준으로 체크)
-    let label: string | undefined
+    // 판단 노드에서 뽑을 때 자동 라벨 부여 방지 및 팝업 대기 상태 (null) 로 설정
+    let label: string | null | undefined
     const originalSourceNode = nodes.find(n => n.id === finalSource)
     if (originalSourceNode?.data.kind === 'decision') {
-      const existingOutgoing = edges.filter(e => e.source === finalSource && !edgesToRemove.has(e.id))
-      label = existingOutgoing.length === 0 ? DECISION_LABELS.yes : DECISION_LABELS.no
+      label = null
     }
 
     const newEdge: FlowEdge = {
@@ -299,7 +298,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       type: 'labeled',
       reconnectable: true,
       markerEnd: { type: MarkerType.Arrow, width: 20, height: 20, color: '#64748B' },
-      ...(label ? { label, data: { isDecisionEdge: true } } : {}),
+      ...(label !== undefined ? { label, data: { isDecisionEdge: true } } : {}),
     }
 
     let updatedEdges = addEdge(newEdge, edges.filter(e => !edgesToRemove.has(e.id)))
@@ -355,7 +354,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     persistToStorage(nextNodes, edges, get().student)
   },
 
-  connectAnchorToNode: (anchorNodeId, targetNodeId, snapHandleId = 'top') => {
+  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, snapHandleId = 'top') => {
     const { nodes, edges, past } = get()
     // 앵커 노드와 연결되어 있던 엣지 찾기
     const connectedEdge = edges.find(e => e.source === anchorNodeId || e.target === anchorNodeId)
@@ -394,6 +393,16 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     const { nodes, edges, past } = get()
     set({
       nodes: nodes.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n),
+      past: pushCanvasHistory(past, nodes, edges),
+      future: [],
+    })
+    persistToStorage(get().nodes, get().edges, get().student)
+  },
+
+  updateEdgeLabel: (id, label) => {
+    const { nodes, edges, past } = get()
+    set({
+      edges: edges.map(e => e.id === id ? { ...e, label } : e),
       past: pushCanvasHistory(past, nodes, edges),
       future: [],
     })

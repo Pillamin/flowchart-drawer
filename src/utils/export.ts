@@ -1,87 +1,15 @@
-import { toJpeg, toPng } from 'html-to-image'
+import { toPng } from 'html-to-image'
 import jsPDF from 'jspdf'
-import type { ExportFormat, StudentInfo } from '../types'
+import type { StudentInfo } from '../types'
 
-import { getNodesBounds, getViewportForBounds } from '@xyflow/react'
-import { useFlowStore } from '../store/flowStore'
-
+// unused imports removed
 const EXPORT_OPTIONS = {
   quality: 1,
-  pixelRatio: 2,
+  pixelRatio: 4,
   backgroundColor: '#F8FAFC',
 }
 
-export async function exportFlow(
-  format: ExportFormat,
-  canvasEl: HTMLElement,
-  student: StudentInfo,
-): Promise<void> {
-  // 실제 React Flow 요소(viewport)를 찾아서 그 안의 내용물을 내보내기 대상으로 삼습니다.
-  const viewportEl = canvasEl.querySelector('.react-flow__viewport') as HTMLElement
-  if (!viewportEl) return
-
-  // 1. 전체 도형(nodes)의 경계(bounds) 계산
-  const nodes = useFlowStore.getState().nodes
-  const nodesBounds = getNodesBounds(nodes)
-  
-  // 패딩(여백)을 주어 흐름선(예/아니오 라벨 등)이 바깥으로 튀어나가도 잘리지 않도록 설정
-  const padding = 200
-  const imageWidth = nodesBounds.width + padding * 2
-  const imageHeight = nodesBounds.height + padding * 2
-
-  // 2. 전체 노드를 포괄하는 뷰포트(transform) 값 계산 (배율은 1로 고정하여 선명도 유지)
-  const viewport = getViewportForBounds(
-    nodesBounds,
-    imageWidth,
-    imageHeight,
-    0.5,
-    2,
-    padding
-  )
-
-  // html-to-image 에 전달할 옵션에 크기와 transform 강제 적용
-  const styleOptions = {
-    ...EXPORT_OPTIONS,
-    width: imageWidth,
-    height: imageHeight,
-    style: {
-      width: `${imageWidth}px`,
-      height: `${imageHeight}px`,
-      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-    },
-  }
-
-  // 학생 정보 워터마크를 viewportEl에 붙여서 같이 찍히게 합니다.
-  const watermark = createWatermark(student)
-  viewportEl.appendChild(watermark)
-
-  try {
-    if (format === 'png') {
-      const dataUrl = await toPng(viewportEl, styleOptions)
-      downloadDataUrl(dataUrl, getExportFilename(student, 'png'))
-    } else if (format === 'jpg') {
-      const dataUrl = await toJpeg(viewportEl, styleOptions)
-      downloadDataUrl(dataUrl, getExportFilename(student, 'jpg'))
-    } else if (format === 'pdf') {
-      const dataUrl = await toPng(viewportEl, styleOptions)
-      const img = new Image()
-      img.src = dataUrl
-      await new Promise(res => { img.onload = res })
-
-      const pdf = new jsPDF({
-        orientation: img.width > img.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [img.width, img.height],
-      })
-      pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height)
-      pdf.save(getExportFilename(student, 'pdf'))
-    }
-  } finally {
-    viewportEl.removeChild(watermark)
-  }
-}
-
-function getExportFilename(student: StudentInfo, extension: string): string {
+export function getExportFilename(student: StudentInfo, suffix: string, extension: string): string {
   const hakbun = (student.grade || student.classNum || student.number)
     ? `${student.grade || ''}${student.classNum || ''}${(student.number || '').padStart(2, '0')}`
     : ''
@@ -91,8 +19,150 @@ function getExportFilename(student: StudentInfo, extension: string): string {
   if (student.name) parts.push(student.name)
   if (student.title) parts.push(student.title)
   
-  const baseName = parts.length > 0 ? parts.join('_') + ' 순서도' : '순서도'
-  return `${baseName}.${extension}`
+  const baseName = parts.length > 0 ? parts.join('_') : '순서도'
+  return `${baseName}${suffix ? `_${suffix}` : ''}.${extension}`
+}
+
+export async function getFlowchartDataUrl(canvasEl: HTMLElement, student: StudentInfo): Promise<string | null> {
+  const viewportEl = canvasEl.querySelector('.react-flow__viewport') as HTMLElement
+  if (!viewportEl) return null
+
+  // 최적의 크기(Bounding Box)를 DOM 기반으로 계산합니다.
+  // getNodesBounds는 node.position과 node.width만을 참조하며, edge(선)의 궤적을 무시하는 한계가 있습니다.
+  const originalTransform = viewportEl.style.transform
+  const originalTransition = viewportEl.style.transition
+  
+  // 계산을 위해 임시로 뷰포트 변환을 초기화합니다.
+  viewportEl.style.transition = 'none'
+  viewportEl.style.transform = 'translate(0px, 0px) scale(1)'
+  
+  const viewportRect = viewportEl.getBoundingClientRect()
+  const elements = viewportEl.querySelectorAll('.react-flow__node, .react-flow__edge path.react-flow__edge-path')
+  
+  if (elements.length === 0) {
+    viewportEl.style.transform = originalTransform
+    viewportEl.style.transition = originalTransition
+    return null
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  
+  elements.forEach(el => {
+    const rect = el.getBoundingClientRect()
+    // viewportRect.left/top이 내부 좌표계의 원점(0,0) 역할을 합니다.
+    const x = rect.left - viewportRect.left
+    const y = rect.top - viewportRect.top
+    const w = rect.width
+    const h = rect.height
+    
+    if (x < minX) minX = x
+    if (y < minY) minY = y
+    if (x + w > maxX) maxX = x + w
+    if (y + h > maxY) maxY = y + h
+  })
+
+  // 뷰포트 원래대로 복구
+  viewportEl.style.transform = originalTransform
+  viewportEl.style.transition = originalTransition
+
+  // 만약 비정상적인 값이면 (렌더링 꼬임 등) 실패 처리
+  if (minX === Infinity) return null
+
+  const padding = 40
+  const imageWidth = (maxX - minX) + padding * 2
+  const imageHeight = (maxY - minY) + padding * 2
+
+  const styleOptions = {
+    ...EXPORT_OPTIONS,
+    width: imageWidth,
+    height: imageHeight,
+    style: {
+      width: `${imageWidth}px`,
+      height: `${imageHeight}px`,
+      // 계산된 minX, minY를 기반으로 전체 요소를 좌측 상단으로 끌어올립니다.
+      transform: `translate(${-minX + padding}px, ${-minY + padding}px) scale(1)`,
+    },
+  }
+
+  const watermark = createWatermark(student)
+  viewportEl.appendChild(watermark)
+
+  try {
+    return await toPng(viewportEl, styleOptions)
+  } finally {
+    viewportEl.removeChild(watermark)
+  }
+}
+
+export async function exportFlowchartOnly(
+  format: 'png' | 'pdf',
+  canvasEl: HTMLElement,
+  student: StudentInfo,
+): Promise<void> {
+  const dataUrl = await getFlowchartDataUrl(canvasEl, student)
+  if (!dataUrl) return
+  
+  if (format === 'png') {
+    downloadDataUrl(dataUrl, getExportFilename(student, '순서도', 'png'))
+  } else if (format === 'pdf') {
+    const img = new Image()
+    img.src = dataUrl
+    await new Promise(res => { img.onload = res })
+
+    const pdf = new jsPDF({
+      orientation: img.width > img.height ? 'landscape' : 'portrait',
+      unit: 'px',
+      format: [img.width, img.height],
+    })
+    pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height)
+    pdf.save(getExportFilename(student, '순서도', 'pdf'))
+  }
+}
+
+export async function exportPreviewDom(
+  format: 'png' | 'pdf',
+  previewEl: HTMLElement,
+  student: StudentInfo,
+  suffix: string = '',
+  isA4: boolean = true,
+  isLandscape: boolean = false
+): Promise<void> {
+  const styleOptions = {
+    quality: 1,
+    pixelRatio: 4,
+    backgroundColor: '#FFFFFF',
+  }
+  
+  const dataUrl = await toPng(previewEl, styleOptions)
+
+  if (format === 'png') {
+    downloadDataUrl(dataUrl, getExportFilename(student, suffix, 'png'))
+  } else if (format === 'pdf') {
+    const img = new Image()
+    img.src = dataUrl
+    await new Promise(res => { img.onload = res })
+
+    let pdf;
+    let pdfWidth, pdfHeight;
+
+    if (isA4) {
+      const orientation = isLandscape ? 'landscape' : 'portrait'
+      pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4' })
+      pdfWidth = isLandscape ? 297 : 210
+      pdfHeight = isLandscape ? 210 : 297
+    } else {
+      pdf = new jsPDF({
+        orientation: img.width > img.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [img.width, img.height],
+      })
+      pdfWidth = img.width
+      pdfHeight = img.height
+    }
+    
+    pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight)
+    pdf.save(getExportFilename(student, suffix, 'pdf'))
+  }
 }
 
 function createWatermark(student: StudentInfo): HTMLDivElement {
@@ -125,7 +195,7 @@ function createWatermark(student: StudentInfo): HTMLDivElement {
   return el
 }
 
-function downloadDataUrl(dataUrl: string, filename: string): void {
+export function downloadDataUrl(dataUrl: string, filename: string): void {
   const a = document.createElement('a')
   a.href = dataUrl
   a.download = filename
@@ -133,4 +203,17 @@ function downloadDataUrl(dataUrl: string, filename: string): void {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+export function downloadText(text: string, filename: string): void {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }

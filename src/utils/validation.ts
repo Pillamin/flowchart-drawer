@@ -89,7 +89,33 @@ function checkDecisionBranches(nodes: FlowNode[], edges: FlowEdge[]): Validation
         nodeIds: [node.id],
       })
     }
+    
+    const nullLabelEdges = outgoing.filter(e => e.label === null || e.label === undefined || e.label === '')
+    if (nullLabelEdges.length > 0) {
+      issues.push({
+        id: `decision-unlabeled-edge-${node.id}`,
+        severity: 'error',
+        message: `판단 도형 "${node.data.label}"에서 나오는 화살표 중 '예/아니오'가 선택되지 않은 선이 있어요. 선 중앙의 팝업을 눌러 라벨을 선택해주세요!`,
+        nodeIds: [node.id],
+      })
+    }
   })
+  return issues
+}
+
+function checkIncompleteEdges(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const anchorIds = new Set(nodes.filter(n => n.type === 'anchor' || n.type === 'edge-node').map(n => n.id))
+  
+  const incompleteEdges = edges.filter(e => anchorIds.has(e.source) || anchorIds.has(e.target))
+  
+  if (incompleteEdges.length > 0) {
+    issues.push({
+      id: 'incomplete-edges',
+      severity: 'error',
+      message: `어디에도 연결되지 않고 허공에 끊어진 흐름선이 ${incompleteEdges.length}개 있어요. 흐름선의 양끝을 도형에 정확히 연결하거나 불필요한 선을 삭제해주세요!`,
+    })
+  }
   return issues
 }
 
@@ -147,6 +173,7 @@ export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationRe
   const issues: ValidationIssue[] = [
     ...checkStartEnd(nodes),
     ...checkIsolatedNodes(nodes, edges),
+    ...checkIncompleteEdges(nodes, edges),
     ...checkDecisionBranches(nodes, edges),
     ...checkMultipleOutgoing(nodes, edges),
     ...checkEmptyLabels(nodes),

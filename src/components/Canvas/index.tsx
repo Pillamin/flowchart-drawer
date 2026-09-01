@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   BackgroundVariant,
   ConnectionLineType,
   ConnectionMode,
@@ -150,7 +149,7 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
         x: Math.round((position.x - width / 2) / SNAP_GRID[0]) * SNAP_GRID[0],
         y: Math.round((position.y - height / 2) / SNAP_GRID[1]) * SNAP_GRID[1],
       },
-      data: { label: defaultLabel, kind },
+      data: { label: defaultLabel, kind, isNew: true } as any,
     })
   }, [screenToFlowPosition, addNode, onConnect, removeEdge, nodes])
 
@@ -537,16 +536,6 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
           showFitView
           showZoom
           showInteractive
-        />
-        <MiniMap
-          className="hidden md:block"
-          position="top-right"
-          style={{ top: 16, right: 16, borderRadius: 10, overflow: 'hidden' }}
-          nodeColor={(n) => {
-            const kind = (n.data as { kind?: NodeKind }).kind
-            return kind ? NODE_CONFIGS[kind].colors.bg : '#f1f5f9'
-          }}
-          maskColor="rgba(241,245,249,0.7)"
         />
       </ReactFlow>
 

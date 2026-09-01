@@ -24,6 +24,16 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
 
   useEffect(() => { setDraft(data.label) }, [data.label])
 
+  useEffect(() => {
+    if ((data as any).isNew) {
+      setEditing(true)
+      setTimeout(() => { inputRef.current?.select() }, 50)
+      if (typeof (data as any).isNew !== 'undefined') {
+         delete (data as any).isNew
+      }
+    }
+  }, [data])
+
   const commitEdit = useCallback(() => {
     setEditing(false)
     if (draft.trim() !== data.label) {
@@ -111,12 +121,13 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
             ref={inputRef}
             rows={Math.max(1, draft.split('\n').length)}
             value={draft}
+            placeholder={config.placeholder}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
             onMouseDown={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
-            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft || config.placeholder)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -128,7 +139,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
           />
         ) : (
           <div
-            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label)}`}
+            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label || config.placeholder)} ${!data.label ? 'opacity-50' : ''}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -137,7 +148,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
               whiteSpace: 'pre-wrap',
             }}
           >
-            {data.label}
+            {data.label || config.placeholder}
           </div>
         )}
       </div>

@@ -44,9 +44,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
             <line x1="6" y1="18" x2="96" y2="18" stroke="#64748B" strokeWidth="2" markerEnd="url(#sb-arrow)" />
             <circle cx="6" cy="18" r="3.5" fill="#3B82F6" />
           </svg>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-text-primary leading-tight text-center">흐름선  Flow Line</span>
-            <ShapeTooltip kind="edge" onOpenHelp={onOpenHelp} />
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full">
+            <div></div>
+            <span className="text-xs font-bold text-text-primary leading-tight text-center">흐름선</span>
+            <div className="flex justify-start pl-1.5">
+              <ShapeTooltip kind="edge" onOpenHelp={onOpenHelp} />
+            </div>
           </div>
         </div>
       </div>
