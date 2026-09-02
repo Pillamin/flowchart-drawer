@@ -4,10 +4,13 @@ import { useFlowStore } from '../../store/flowStore'
 interface TrashBinProps {
   isOver: boolean
   onClick: () => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDragLeave?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
 }
 
 /** 캔버스 오른쪽 하단에 위치한 휴지통 모양 아이콘 버튼 */
-export const TrashBin: React.FC<TrashBinProps> = ({ isOver, onClick }) => {
+export const TrashBin: React.FC<TrashBinProps> = ({ isOver, onClick, onDragOver, onDragLeave, onDrop }) => {
   const { nodes, edges } = useFlowStore()
   const hasSelection = nodes.some(n => n.selected) || edges.some(e => e.selected)
 
@@ -15,6 +18,9 @@ export const TrashBin: React.FC<TrashBinProps> = ({ isOver, onClick }) => {
     <div
       id="trash-bin-zone"
       onClick={onClick}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       className={`absolute bottom-14 right-14 z-10 flex items-center justify-center w-14 h-14 rounded-2xl shadow-xl border-2 transition-all duration-200 cursor-pointer select-none ${
         isOver
           ? 'bg-red-500 border-red-600 text-white scale-115 shadow-red-300 shadow-2xl animate-bounce'

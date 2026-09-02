@@ -67,6 +67,7 @@ export const AlgorithmPanel: React.FC<AlgorithmPanelProps> = ({ onClearClick }) 
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const [fontSizeOffset, setFontSizeOffset] = useState<number>(0)
 
   // Panel width state with localStorage persistence
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -308,10 +309,10 @@ export const AlgorithmPanel: React.FC<AlgorithmPanelProps> = ({ onClearClick }) 
           }`}
         >
           {/* Main Row */}
-          <div className="flex items-start gap-1.5 w-full hover:bg-slate-50 transition-colors py-1.5 px-2 rounded-t-md">
+          <div className="flex items-center gap-1.5 w-full hover:bg-slate-50 transition-colors py-1.5 px-2 rounded-t-md">
             {/* Drag Handle Icon - 좌측 */}
             <div 
-              className="drag-handle flex items-center gap-1 pt-1.5 flex-shrink-0 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing select-none" 
+              className="drag-handle flex items-center gap-1 flex-shrink-0 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing select-none" 
               title="드래그하여 순서 변경"
               onMouseEnter={(e) => {
                 const card = e.currentTarget.closest('.step-card-wrapper')
@@ -327,58 +328,55 @@ export const AlgorithmPanel: React.FC<AlgorithmPanelProps> = ({ onClearClick }) 
               }}
             >
               <span>⋮⋮</span>
-              <span className="text-[13px] font-bold w-5 text-center">{getStepNumber(depth, idx)}</span>
+              <span className="font-bold min-w-[20px] text-center" style={{ fontSize: `calc(13px + ${fontSizeOffset}px)` }}>{getStepNumber(depth, idx)}</span>
             </div>
 
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-              {editingId === step.id ? (
-                <textarea
-                  onFocus={(e) => e.target.select()}
-                  ref={(el) => {
-                    if (el) {
-                      el.style.height = '0px'
-                      el.style.height = `${el.scrollHeight}px`
-                    }
-                  }}
-                  value={editText}
-                  onChange={(e) => {
-                    setEditText(e.target.value)
-                    e.target.style.height = '0px'
-                    e.target.style.height = `${e.target.scrollHeight}px`
-                  }}
-                  onBlur={() => saveEdit(step.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      saveEdit(step.id)
-                    } else if (e.key === 'Escape') {
-                      setEditingId(null)
-                    } else if (e.key === 'Tab') {
-                      e.preventDefault()
-                      if (e.shiftKey) {
-                        outdentStep(step.id)
-                      } else {
-                        indentStep(step.id)
-                      }
-                    }
-                  }}
-                  rows={1}
-                  className={`w-full text-slate-900 font-semibold text-[13px] sm:text-[14px] leading-relaxed bg-white border border-slate-300 rounded py-1 px-1.5 outline-none shadow-sm min-w-0 resize-none overflow-hidden focus:ring-1 focus:ring-slate-400 placeholder:text-slate-400 placeholder:font-medium`}
-                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-                  autoFocus
-                />
-              ) : (
-                <div
-                  onDoubleClick={() => startEdit(step.id, step.text)}
-                  className={`${
-                    !step.text.trim() ? 'text-slate-400 font-medium' : 'text-slate-900 font-semibold'
-                  } text-[13px] sm:text-[14px] leading-relaxed whitespace-pre-wrap cursor-text min-w-0 py-1 px-1.5 rounded transition-colors hover:bg-slate-100/50 select-none`}
-                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-                  title="더블클릭하여 내용 편집"
-                >
-                  {step.text || '단계를 입력하세요.'}
-                </div>
-              )}
+              <textarea
+                onFocus={() => {
+                  if (editingId !== step.id) {
+                    startEdit(step.id, step.text)
+                  }
+                }}
+                onDoubleClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                ref={(el) => {
+                  if (el) {
+                    el.style.height = '0px'
+                    el.style.height = `${el.scrollHeight}px`
+                  }
+                }}
+                value={editingId === step.id ? editText : step.text}
+                onChange={(e) => {
+                  if (editingId === step.id) setEditText(e.target.value)
+                  e.target.style.height = '0px'
+                  e.target.style.height = `${e.target.scrollHeight}px`
+                }}
+                onBlur={() => {
+                  if (editingId === step.id) saveEdit(step.id)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    saveEdit(step.id)
+                    e.currentTarget.blur()
+                  } else if (e.key === 'Escape') {
+                    setEditingId(null)
+                    e.currentTarget.blur()
+                  } else if (e.key === 'Tab') {
+                    e.preventDefault()
+                    if (e.shiftKey) outdentStep(step.id)
+                    else indentStep(step.id)
+                  }
+                }}
+                rows={1}
+                placeholder="단계를 입력하세요."
+                className={`w-full font-semibold leading-relaxed py-1 px-1.5 outline-none resize-none overflow-hidden transition-colors ${
+                  editingId === step.id 
+                    ? 'bg-white border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-slate-400 text-slate-900' 
+                    : 'bg-transparent border border-transparent hover:bg-slate-100/50 rounded cursor-text ' + (!step.text.trim() ? 'text-slate-400 font-medium' : 'text-slate-900')
+                }`}
+                style={{ fontSize: `calc(14px + ${fontSizeOffset}px)`, wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+              />
             </div>
 
             {/* Action buttons (Delete / Substep Toggle) */}
@@ -498,6 +496,13 @@ export const AlgorithmPanel: React.FC<AlgorithmPanelProps> = ({ onClearClick }) 
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Font Size Control */}
+          <div className="hidden sm:flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+            <button onClick={() => setFontSizeOffset(p => p - 1)} className="w-7 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer" title="작게">A-</button>
+            <div className="w-px h-4 bg-slate-200 my-auto" />
+            <button onClick={() => setFontSizeOffset(p => p + 1)} className="w-7 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer" title="크게">A+</button>
+          </div>
+
           {/* Undo / Redo Group (Icon only) */}
           <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
             <button

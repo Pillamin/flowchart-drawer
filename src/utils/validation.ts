@@ -156,6 +156,43 @@ function checkMultipleOutgoing(nodes: FlowNode[], edges: FlowEdge[]): Validation
   return issues
 }
 
+function checkDisconnectedGraphs(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const realNodes = nodes.filter(n => n.type !== 'anchor' && n.type !== 'edge-node')
+  if (realNodes.length <= 1) return issues
+
+  const adj: Record<string, string[]> = {}
+  realNodes.forEach(n => { adj[n.id] = [] })
+
+  edges.forEach(e => {
+    if (adj[e.source] && adj[e.target]) {
+      adj[e.source].push(e.target)
+      adj[e.target].push(e.source)
+    }
+  })
+
+  const visited = new Set<string>()
+  const dfs = (nodeId: string) => {
+    if (visited.has(nodeId)) return
+    visited.add(nodeId)
+    adj[nodeId].forEach(neighbor => dfs(neighbor))
+  }
+
+  dfs(realNodes[0].id)
+
+  if (visited.size < realNodes.length) {
+    const unvisited = realNodes.filter(n => !visited.has(n.id))
+    issues.push({
+      id: 'disconnected-graph',
+      severity: 'error',
+      message: '일부 도형들이 전체 흐름도와 연결되지 않고 따로 떨어져 있어요. 모든 도형이 하나의 흐름으로 이어지게 해주세요!',
+      nodeIds: unvisited.map(n => n.id)
+    })
+  }
+
+  return issues
+}
+
 // ─── Main Validation Entry Point ─────────────────────────────────────────────────
 export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationResult {
   // anchor/edge-node를 제외한 실제 노드만 체크
@@ -177,6 +214,7 @@ export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationRe
     ...checkIncompleteEdges(nodes, edges),
     ...checkDecisionBranches(nodes, edges),
     ...checkMultipleOutgoing(nodes, edges),
+    ...checkDisconnectedGraphs(nodes, edges),
     ...checkEmptyLabels(nodes),
   ]
 

@@ -110,23 +110,31 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
     const dropX = Math.round(position.x / SNAP_GRID[0]) * SNAP_GRID[0]
     const dropY = Math.round(position.y / SNAP_GRID[1]) * SNAP_GRID[1]
 
-    // 캔버스에 엣지를 드래그해서 휴지통으로 가져왔는지 체크
+    // 캔버스에 아이템을 드래그해서 휴지통으로 가져왔는지 체크
+    let isOverTrashArea = false
+    const trashEl = document.getElementById('trash-bin-zone')
+    if (trashEl) {
+      const rect = trashEl.getBoundingClientRect()
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        isOverTrashArea = true
+      }
+    }
+
     const edgeIdToDelete = e.dataTransfer.getData('application/flowchart-edge-id')
     if (edgeIdToDelete) {
-      const trashEl = document.getElementById('trash-bin-zone')
-      if (trashEl) {
-        const rect = trashEl.getBoundingClientRect()
-        if (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
-        ) {
-          removeEdge(edgeIdToDelete)
-          setIsOverTrash(false)
-          return
-        }
+      if (isOverTrashArea) {
+        removeEdge(edgeIdToDelete)
+        setIsOverTrash(false)
+        return
       }
+    } else if (isOverTrashArea) {
+      setIsOverTrash(false)
+      return
     }
 
     // 흐름선(Edge)을 끌어다 놓은 경우 (다른 도형 없이 독립된 흐름선만 생성)
@@ -584,6 +592,17 @@ export const Canvas: React.FC<CanvasProps> = ({ canvasRef }) => {
       <TrashBin
         isOver={isOverTrash}
         onClick={deleteSelectedElements}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsOverTrash(true)
+        }}
+        onDragLeave={() => setIsOverTrash(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setIsOverTrash(false)
+          const edgeId = e.dataTransfer.getData('application/flowchart-edge-id')
+          if (edgeId) removeEdge(edgeId)
+        }}
       />
 
       {isEmpty && <OnboardingGuide />}

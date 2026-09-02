@@ -22,7 +22,7 @@ const renderPreviewShape = (kind: NodeKind, width: number, height: number) => {
     const r = (height - 4) / 2
     shape = <rect x={2} y={2} width={width - 4} height={height - 4} rx={r} />
   } else if (kind === 'process') {
-    shape = <rect x={2} y={2} width={width - 4} height={height - 4} rx={4} />
+    shape = <rect x={2} y={2} width={width - 4} height={height - 4} />
   } else if (kind === 'io') {
     const indent = Math.round(height * 0.35)
     shape = <polygon points={`${indent},2 ${width - 2},2 ${width - indent},${height - 2} 2,${height - 2}`} />
@@ -150,7 +150,6 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({ draggingNodeId, dragPrev
           <svg width={100} height={20} viewBox="0 -10 100 20" style={{ overflow: 'visible' }}>
             <line x1="0" y1="0" x2="100" y2="0" stroke="#64748B" strokeWidth="2" />
             <polygon points="88,-6 88,6 100,0" fill="#64748B" />
-            <circle cx="0" cy="0" r="4" fill="#3B82F6" />
           </svg>
         </div>
       )}

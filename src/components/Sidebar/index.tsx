@@ -49,7 +49,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
               </marker>
             </defs>
             <line x1="6" y1="18" x2="96" y2="18" stroke="#64748B" strokeWidth="2" markerEnd="url(#sb-arrow)" />
-            <circle cx="6" cy="18" r="3.5" fill="#3B82F6" />
           </svg>
           <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full">
             <div></div>

@@ -79,12 +79,17 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
         <marker id={`arrow-selected`} markerWidth="12.5" markerHeight="12.5" viewBox="-10 -10 20 20" refX="0" refY="0" orient="auto-start-reverse">
           <polygon strokeLinecap="round" strokeLinejoin="round" points="-5,-4 0,0 -5,4 -5,-4" fill="#3B82F6" stroke="#3B82F6" strokeWidth="1" />
         </marker>
+        <marker id={`arrow-sim-active`} markerWidth="12.5" markerHeight="12.5" viewBox="-10 -10 20 20" refX="0" refY="0" orient="auto-start-reverse">
+          <polygon className="marker-sim-active" strokeLinecap="round" strokeLinejoin="round" points="-5,-4 0,0 -5,4 -5,-4" strokeWidth="1" />
+        </marker>
       </defs>
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={
-          isErrorFlashing 
+          isSimActive
+            ? 'url(#arrow-sim-active)'
+            : isErrorFlashing 
             ? 'url(#arrow-error)'
             : selected
             ? 'url(#arrow-selected)'
@@ -200,6 +205,13 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
       </EdgeLabelRenderer>
       
       <style>{`
+        @keyframes arrowBlink {
+          0%, 100% { stroke: #FBBF24; fill: #FBBF24; filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6)); }
+          50% { stroke: #D97706; fill: #D97706; filter: none; }
+        }
+        .marker-sim-active {
+          animation: arrowBlink 1.2s ease-in-out infinite;
+        }
         .edge-endpoints {
           opacity: 0;
         }
