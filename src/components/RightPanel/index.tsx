@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react'
-import type { LegalType } from '../modals/LegalModal'
 import { useFlowStore } from '../../store/flowStore'
 import { useSimulation } from '../../hooks/useSimulation'
 import { Button } from '../ui/Button'
@@ -10,13 +9,12 @@ interface RightPanelProps {
   isCollapsed: boolean
   onToggleCollapse: () => void
   onTemplateClick?: () => void
-  onOpenLegalModal: (type: LegalType) => void
   validationResult?: ValidationResult | null
   onClearValidation?: () => void
 }
 
 /** 우측 패널: 디버깅 및 실행 결과 (준비 중) */
-export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCollapse, onOpenLegalModal, validationResult, onClearValidation }) => {
+export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCollapse, validationResult, onClearValidation }) => {
   const simulation = useFlowStore(s => s.simulation)
   const { chooseDecision, stop } = useSimulation()
   const scrollRef = useRef<HTMLDivElement>(null)

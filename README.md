@@ -20,6 +20,19 @@ Flowchart Drawer는 중학교 1학년 '정보' 과목의 알고리즘과 프로�
 * **Flowchart Engine**: `@xyflow/react` (React Flow)
 * **Styling**: Tailwind CSS
 * **Build Tool**: Vite
+* **Export Utilities**: `html2canvas`, `jspdf`
+
+## 📁 폴더 구조 (Project Structure)
+
+```text
+src/
+├── components/      # UI 컴포넌트 (Canvas, Toolbar, Sidebar, RightPanel, modals 등)
+├── hooks/           # 커스텀 훅 (useSimulation 등)
+├── store/           # 전역 상태 관리 (Zustand: flowStore)
+├── utils/           # 유틸리티 함수 (알고리즘 변환, 내보내기, 유효성 검사 등)
+├── types/           # TypeScript 인터페이스 및 타입 정의
+└── App.tsx          # 메인 애플리케이션 레이아웃 및 라우팅
+```
 
 ## 🚀 시작하기 (Getting Started)
 

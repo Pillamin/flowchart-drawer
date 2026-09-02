@@ -197,7 +197,6 @@ const AppInner: React.FC = () => {
             isCollapsed={isDesktopRightPanelCollapsed}
             onToggleCollapse={() => setIsDesktopRightPanelCollapsed(prev => !prev)}
             onTemplateClick={() => setShowTemplate(true)}
-            onOpenLegalModal={(type) => setLegalType(type)}
             validationResult={validationResult}
             onClearValidation={() => setValidationResult(null)}
           />
