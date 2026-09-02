@@ -146,7 +146,7 @@ if (typeof window !== 'undefined') {
   })
 }
 
-function loadFromStorage(): Pick<FlowStore, 'nodes' | 'edges' | 'student'> | null {
+function loadFromStorage(): Pick<FlowStore, 'nodes' | 'edges' | 'student' | 'algorithmSteps'> | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -219,8 +219,8 @@ function findMergeNode(
 const saved = loadFromStorage()
 
 export const useFlowStore = create<FlowStore>((set, get) => ({
-  nodes: [],
-  edges: [],
+  nodes: saved?.nodes ?? [],
+  edges: saved?.edges ?? [],
   past: [],
   future: [],
   pastAlgorithm: [],
@@ -636,7 +636,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
   isAlgorithmPanelOpen: true,
   isAutoSyncEnabled: false,
   hoveredStepId: null,
-  algorithmSteps: [],
+  algorithmSteps: saved?.algorithmSteps ?? [],
 
   toggleAlgorithmPanel: () => set(s => ({ isAlgorithmPanelOpen: !s.isAlgorithmPanelOpen })),
   setAlgorithmPanelOpen: (open) => set({ isAlgorithmPanelOpen: open }),
