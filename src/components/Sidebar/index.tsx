@@ -3,13 +3,15 @@ import { NodeCard } from './NodeCard'
 import { ShapeTooltip } from './ShapeTooltip'
 import { NODE_KINDS_ORDER } from '../../constants/nodeConfig'
 import type { HelpTopic } from '../modals/HelpModal'
+import type { LegalType } from '../modals/LegalModal'
 
 interface SidebarProps {
   onOpenHelp?: (topic: HelpTopic) => void
+  onOpenLegalModal: (type: LegalType) => void
 }
 
 /** 좌측 도형 팔레트 사이드바 */
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp, onOpenLegalModal }) => {
   const onEdgeDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/flowchart-item-type', 'edge')
     e.dataTransfer.effectAllowed = 'move'
@@ -60,10 +62,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
         </div>
       </div>
 
-      <div className="mt-auto px-4 py-3 border-t border-slate-100">
+      <div className="mt-auto px-4 pt-3 pb-4 border-t border-slate-100 flex flex-col gap-4">
         <p className="text-[11px] text-text-placeholder leading-relaxed">
           💡 <strong>팁:</strong> 도형을 클릭하면 연결 포트가 나타나요. 포트에서 드래그해서 화살표를 연결해보세요!
         </p>
+        
+        <div className="flex flex-col items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs text-emerald-700 font-bold w-full justify-center">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="truncate">자동 저장 활성화됨</span>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium">
+            <button
+              onClick={() => onOpenLegalModal('terms')}
+              className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
+            >
+              이용약관
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => onOpenLegalModal('privacy')}
+              className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
+            >
+              개인정보처리방침
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
   )

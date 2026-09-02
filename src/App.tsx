@@ -183,7 +183,7 @@ const AppInner: React.FC = () => {
           <div className="flex flex-1 overflow-hidden relative">
             {/* Sidebar Wrapper */}
             <div className={`transition-transform transform md:translate-x-0 absolute md:relative z-40 h-full ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
-              <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
+              <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} onOpenLegalModal={(type) => setLegalType(type)} />
             </div>
 
             <Canvas canvasRef={canvasRef} />

@@ -100,16 +100,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
     return (
       <button
         onClick={() => setSelectedFormat(id)}
-        className={`flex items-start gap-3 w-full text-left p-3 border rounded-xl transition-all cursor-pointer ${
+        className={`flex items-center gap-3 w-full text-left p-2 border rounded-xl transition-all cursor-pointer ${
           isSelected 
-            ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 shadow-sm' 
+            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200 shadow-sm' 
             : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
         }`}
       >
-        <span className="text-2xl shrink-0 mt-0.5">{icon}</span>
+        <span className="text-xl shrink-0">{icon}</span>
         <div className="flex flex-col">
           <span className={`text-sm font-bold ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{title}</span>
-          <span className={`text-xs mt-0.5 ${isSelected ? 'text-blue-600/80' : 'text-slate-500'}`}>{desc}</span>
+          <span className={`text-[11px] mt-0.5 ${isSelected ? 'text-blue-600/80' : 'text-slate-500'}`}>{desc}</span>
         </div>
       </button>
     )
@@ -122,35 +122,100 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="내보내기 및 저장" maxWidth="max-w-5xl">
       <div className="flex flex-col h-[75vh] min-h-[500px] max-h-[800px] bg-white rounded-b-2xl -mx-6 -my-5">
-        <div className="flex flex-col md:flex-row gap-6 px-6 pb-6 pt-3 flex-1 min-h-0">
+        <div className="flex flex-col md:flex-row gap-4 px-6 pb-3 pt-1 flex-1 min-h-0">
           
           {/* Left Column: Options (35%) */}
-          <div className="w-full md:w-[35%] flex flex-col gap-6 overflow-y-auto pr-2">
+          <div className="w-full md:w-[35%] flex flex-col gap-3 overflow-y-auto pr-2">
             
+            {/* 0. 학생 정보 입력 */}
+            <section className="flex flex-col gap-1.5">
+              <h3 className="text-[13px] font-bold text-slate-700">인적사항 입력</h3>
+              <div className="flex flex-col gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                
+                {/* Row 1: Grade / Class / Number / Name */}
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-1 items-center gap-1.5 bg-white px-2 py-1.5 border border-slate-200 rounded-lg focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100 transition-all shadow-sm">
+                    <span className="text-sm ml-0.5 shrink-0">🎓</span>
+                    <input
+                      type="text"
+                      value={student.grade || ''}
+                      onChange={e => useFlowStore.getState().setStudent({ grade: e.target.value })}
+                      placeholder="학년"
+                      maxLength={1}
+                      className="w-full min-w-0 text-center text-[13px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                    <div className="w-px h-3 bg-slate-200 shrink-0"></div>
+                    <input
+                      type="text"
+                      value={student.classNum || ''}
+                      onChange={e => useFlowStore.getState().setStudent({ classNum: e.target.value })}
+                      placeholder="반"
+                      maxLength={2}
+                      className="w-full min-w-0 text-center text-[13px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                    <div className="w-px h-3 bg-slate-200 shrink-0"></div>
+                    <input
+                      type="text"
+                      value={student.number || ''}
+                      onChange={e => useFlowStore.getState().setStudent({ number: e.target.value })}
+                      placeholder="번호"
+                      maxLength={2}
+                      className="w-full min-w-0 text-center text-[13px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div className="flex flex-1 items-center gap-1.5 bg-white px-2 py-1.5 border border-slate-200 rounded-lg focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100 transition-all shadow-sm shrink-0">
+                    <span className="text-sm ml-0.5 shrink-0">👤</span>
+                    <input
+                      type="text"
+                      value={student.name || ''}
+                      onChange={e => useFlowStore.getState().setStudent({ name: e.target.value })}
+                      placeholder="이름"
+                      maxLength={10}
+                      className="w-full text-[13px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Title */}
+                <div className="flex items-center gap-2 bg-white px-2 py-1.5 border border-slate-200 rounded-lg focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100 transition-all shadow-sm">
+                  <span className="text-sm shrink-0">🏷️</span>
+                  <input
+                    type="text"
+                    value={student.title || ''}
+                    onChange={e => useFlowStore.getState().setStudent({ title: e.target.value })}
+                    placeholder="순서도 제목"
+                    maxLength={30}
+                    className="w-full text-[13px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+            </section>
+
             {/* 1. 통합 제출용 */}
-            <section className="flex flex-col gap-2.5">
-              <h3 className="text-sm font-bold text-blue-600 flex items-center gap-1">
+            <section className="flex flex-col gap-1.5">
+              <h3 className="text-[13px] font-bold text-blue-600 flex items-center gap-1">
                 <span>⭐ 자연어+순서도 알고리즘 (A4)</span>
               </h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {renderFormatCard('INTEGRATED_PDF', 'PDF 문서', '수행평가 제출에 최적화된 형식', '📄')}
                 {renderFormatCard('INTEGRATED_PNG', 'PNG 이미지', '웹이나 문서 삽입용 깔끔한 이미지', '🖼️')}
               </div>
             </section>
 
             {/* 2. 자연어 단독 */}
-            <section className="flex flex-col gap-2.5 mt-2">
-              <h3 className="text-sm font-bold text-slate-700">자연어 알고리즘</h3>
-              <div className="flex flex-col gap-2">
+            <section className="flex flex-col gap-1.5">
+              <h3 className="text-[13px] font-bold text-slate-700">자연어 알고리즘</h3>
+              <div className="flex flex-col gap-1.5">
                 {renderFormatCard('NATURAL_TXT', 'TXT 파일', '텍스트 파일로 저장', '📝')}
-                {renderFormatCard('NATURAL_COPY', '클립보드 복사', '보고서 등에 바로 붙여넣기', '📋')}
+                {renderFormatCard('NATURAL_COPY', '클립보드 복사', '보고서 등에 붙여넣기', '📋')}
               </div>
             </section>
 
             {/* 3. 순서도 단독 */}
-            <section className="flex flex-col gap-2.5 mt-2">
-              <h3 className="text-sm font-bold text-slate-700">순서도 알고리즘</h3>
-              <div className="flex flex-col gap-2">
+            <section className="flex flex-col gap-1.5">
+              <h3 className="text-[13px] font-bold text-slate-700">순서도 알고리즘</h3>
+              <div className="flex flex-col gap-1.5">
                 {renderFormatCard('FLOWCHART_PNG', 'PNG 이미지', '배경이 투명한 순서도 이미지', '🎨')}
                 {renderFormatCard('FLOWCHART_PDF', 'PDF 문서', '확대해도 깨지지 않는 벡터 순서도', '📐')}
               </div>
@@ -319,7 +384,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-5 bg-slate-50 border-t border-slate-200 rounded-b-2xl">
+        <div className="flex justify-end gap-3 px-6 py-3 bg-slate-50 border-t border-slate-200 rounded-b-2xl">
           <button
             onClick={onClose}
             className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"

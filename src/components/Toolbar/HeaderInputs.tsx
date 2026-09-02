@@ -1,70 +1,52 @@
 import React from 'react'
-import { useFlowStore } from '../../store/flowStore'
 
 export const HeaderInputs: React.FC = () => {
-  const student = useFlowStore(s => s.student)
-  const setStudent = useFlowStore(s => s.setStudent)
-
   return (
-    <div className="flex items-center gap-3 flex-1 justify-center mx-2 max-w-4xl">
-      {/* Title */}
-      <div className="flex items-center gap-1.5 min-w-[240px] max-w-[380px] w-full">
-        <span className="text-sm">🏷️</span>
-        <input
-          type="text"
-          value={student.title || ''}
-          onChange={e => setStudent({ title: e.target.value })}
-          placeholder="순서도 제목"
-          maxLength={30}
-          className="w-full text-sm font-bold text-slate-800 bg-slate-200/90 hover:bg-slate-300/80 border-transparent rounded-lg px-3 py-1.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-500 transition-all shadow-inner"
-        />
-      </div>
+    <div className="flex items-center gap-1 flex-1 justify-center mx-2 max-w-4xl">
+      {/* 1. 추상화 */}
+      <button 
+        onClick={() => window.open('https://abstraction-brown.vercel.app/', '_blank')}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[0.9rem] font-semibold text-slate-600 bg-transparent hover:text-indigo-600 hover:bg-indigo-50/70 transition-all duration-200"
+      >
+        <span>🧩</span>
+        <span>추상화</span>
+      </button>
 
-      <div className="w-px h-5 bg-slate-200" />
+      {/* 구분선 */}
+      <div className="w-px h-3.5 bg-slate-300 mx-1"></div>
 
-      {/* Grade / Class / Number */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm">🎓</span>
-        <input
-          type="text"
-          value={student.grade || ''}
-          onChange={e => setStudent({ grade: e.target.value })}
-          placeholder="학년"
-          maxLength={1}
-          className="w-12 text-center text-sm font-bold text-slate-800 bg-slate-200/90 hover:bg-slate-300/80 border-transparent rounded-lg px-2 py-1.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-500 transition-all shadow-inner"
-        />
-        <input
-          type="text"
-          value={student.classNum || ''}
-          onChange={e => setStudent({ classNum: e.target.value })}
-          placeholder="반"
-          maxLength={2}
-          className="w-12 text-center text-sm font-bold text-slate-800 bg-slate-200/90 hover:bg-slate-300/80 border-transparent rounded-lg px-2 py-1.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-500 transition-all shadow-inner"
-        />
-        <input
-          type="text"
-          value={student.number || ''}
-          onChange={e => setStudent({ number: e.target.value })}
-          placeholder="번호"
-          maxLength={2}
-          className="w-12 text-center text-sm font-bold text-slate-800 bg-slate-200/90 hover:bg-slate-300/80 border-transparent rounded-lg px-2 py-1.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-500 transition-all shadow-inner"
-        />
-      </div>
+      {/* 2. 알고리즘 */}
+      <button 
+        onClick={() => window.open('https://algorithm-two-pi.vercel.app/', '_blank')}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[0.9rem] font-semibold text-slate-600 bg-transparent hover:text-indigo-600 hover:bg-indigo-50/70 transition-all duration-200"
+      >
+        <span>📜</span>
+        <span>알고리즘</span>
+      </button>
 
-      <div className="w-px h-5 bg-slate-200" />
+      {/* 구분선 */}
+      <div className="w-px h-3.5 bg-slate-300 mx-1"></div>
 
-      {/* Name */}
-      <div className="flex items-center gap-1.5 min-w-[120px] max-w-[180px] w-full">
-        <span className="text-sm">👤</span>
-        <input
-          type="text"
-          value={student.name || ''}
-          onChange={e => setStudent({ name: e.target.value })}
-          placeholder="이름"
-          maxLength={10}
-          className="w-full text-sm font-bold text-slate-800 bg-slate-200/90 hover:bg-slate-300/80 border-transparent rounded-lg px-3 py-1.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-500 transition-all shadow-inner"
-        />
-      </div>
+      {/* 3. 알고리즘 작성 (현재 사이트 활성화 상태) */}
+      <button 
+        onClick={() => window.location.reload()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[0.9rem] font-semibold bg-indigo-100 text-indigo-800 transition-all duration-200 cursor-pointer"
+      >
+        <span>✍️</span>
+        <span>알고리즘 작성</span>
+      </button>
+
+      {/* 구분선 */}
+      <div className="w-px h-3.5 bg-slate-300 mx-1"></div>
+
+      {/* 4. 알고리즘 분석 */}
+      <button 
+        onClick={() => window.open('https://updown-algorithm-analysis.vercel.app/', '_blank')}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[0.9rem] font-semibold text-slate-600 bg-transparent hover:text-indigo-600 hover:bg-indigo-50/70 transition-all duration-200"
+      >
+        <span>📊</span>
+        <span>알고리즘 분석</span>
+      </button>
     </div>
   )
 }

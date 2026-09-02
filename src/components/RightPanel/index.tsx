@@ -223,28 +223,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({ isCollapsed, onToggleCol
         {simulation.status !== 'idle' && renderSimulation()}
       </div>
 
-      {/* Footer & Status - Fixed */}
-      <div className="flex flex-col items-center gap-2 px-5 py-4 border-t border-slate-100 bg-white shrink-0">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs text-emerald-700 font-bold">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>자동 저장 활성화됨</span>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
-          <button
-            onClick={() => onOpenLegalModal('terms')}
-            className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
-          >
-            이용약관
-          </button>
-          <span>·</span>
-          <button
-            onClick={() => onOpenLegalModal('privacy')}
-            className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
-          >
-            개인정보처리방침
-          </button>
-        </div>
-      </div>
     </aside>
   )
 }
