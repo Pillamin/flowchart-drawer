@@ -22,7 +22,7 @@ interface NodeHandlesProps {
  * - 노드를 드래그하면 흐름선 생성
  */
 export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
-  nodeId,
+  nodeId: _nodeId,
   isHovered = false,
   selected = false,
   offsets,
@@ -30,7 +30,7 @@ export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
   const isDraggingEdgeEndpoint = useFlowStore(s => s.isDraggingEdgeEndpoint)
   const isVisible = isHovered || selected || isDraggingEdgeEndpoint
   
-  const getStyle = (handleId: string): React.CSSProperties => {
+  const getStyle = (_handleId: string): React.CSSProperties => {
     // 흐름선 끝점 드래그 중엔 포트 강조
     const isDragging = isDraggingEdgeEndpoint
     return {
@@ -45,11 +45,11 @@ export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
 
   // Handle의 기본 CSS 클래스
   // Hit Area 확장을 위해 before: 요소 사용 (44x44px 영역 확보)
-  const getClassName = (handleId: string) =>
+  const getClassName = (_handleId: string) =>
     `w-2.5 h-2.5 !min-w-[10px] !min-h-[10px] relative before:content-[''] before:absolute before:-inset-4 before:bg-transparent`
 
   // 모든 포트에 다중 연결 허용 (React Flow 기본 동작)
-  const isConn = (handleId: string) => true
+  const isConn = (_handleId: string) => true
 
   return (
     <>
