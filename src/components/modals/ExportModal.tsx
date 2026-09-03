@@ -22,6 +22,52 @@ type ExportFormat =
   | 'NATURAL_TXT' 
   | 'NATURAL_COPY'
 
+function AlgorithmDOMPreview({ steps, depth = 0 }: { steps: AlgorithmStep[], depth?: number }) {
+  if (steps.length === 0 && depth === 0) {
+    return <div className="text-slate-500">작성된 알고리즘이 없습니다.</div>
+  }
+  
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {steps.map((step, idx) => {
+        const num = getStepNumber(depth, idx)
+        return (
+          <div key={step.id} className="flex flex-col w-full">
+            <div className="flex items-start">
+              <span className="shrink-0 w-7 text-right mr-2 font-semibold text-slate-600">{num}</span>
+              <span className="flex-1 break-keep leading-relaxed">{step.text}</span>
+            </div>
+            
+            {step.kind === 'decision' && (
+              <>
+                {step.yesSteps && step.yesSteps.length > 0 && (
+                  <div className="flex flex-col mt-1 pl-9">
+                    <div className="text-slate-500 text-xs font-bold mb-1">(예)인 경우:</div>
+                    <AlgorithmDOMPreview steps={step.yesSteps} depth={depth + 1} />
+                  </div>
+                )}
+                {step.noSteps && step.noSteps.length > 0 && (
+                  <div className="flex flex-col mt-1 pl-9">
+                    <div className="text-slate-500 text-xs font-bold mb-1">(아니오)인 경우:</div>
+                    <AlgorithmDOMPreview steps={step.noSteps} depth={depth + 1} />
+                  </div>
+                )}
+              </>
+            )}
+            
+            {step.kind === 'loop' && step.yesSteps && step.yesSteps.length > 0 && (
+              <div className="flex flex-col mt-1 pl-9">
+                <div className="text-slate-500 text-xs font-bold mb-1">[반복]:</div>
+                <AlgorithmDOMPreview steps={step.yesSteps} depth={depth + 1} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snapshotUrl }) => {
   const student = useFlowStore(s => s.student)
   const algorithmSteps = useFlowStore(s => s.algorithmSteps)
@@ -289,8 +335,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                     <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 mb-3">
                       1. 자연어 알고리즘
                     </h2>
-                    <div className="flex-1 text-sm font-medium whitespace-pre-wrap break-keep leading-relaxed text-slate-700 overflow-hidden bg-slate-50 p-4 rounded-lg border border-slate-200">
-                      {generateAlgorithmText(algorithmSteps)}
+                    <div className="flex-1 text-sm font-medium text-slate-700 overflow-y-auto bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <AlgorithmDOMPreview steps={algorithmSteps} />
                     </div>
                   </div>
                   <div className="flex flex-col flex-1 min-w-0 bg-white p-5 rounded-xl border-2 border-slate-300 shadow-md">
@@ -374,8 +420,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                       자연어 알고리즘
                     </h2>
                   </div>
-                  <div className={`text-sm font-medium whitespace-pre-wrap break-keep leading-relaxed text-slate-700 font-mono ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''} bg-slate-50 p-4 rounded-lg border border-slate-100`}>
-                    {generateAlgorithmText(algorithmSteps, student)}
+                  <div className={`text-sm font-medium text-slate-700 ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''} bg-slate-50 p-4 rounded-lg border border-slate-100`}>
+                    <AlgorithmDOMPreview steps={algorithmSteps} />
                   </div>
                 </div>
               )}
