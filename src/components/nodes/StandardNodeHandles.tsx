@@ -30,40 +30,26 @@ export const StandardNodeHandles: React.FC<NodeHandlesProps> = ({
   const isDraggingEdgeEndpoint = useFlowStore(s => s.isDraggingEdgeEndpoint)
   const isVisible = isHovered || selected || isDraggingEdgeEndpoint
   
-  // Find which handle positions (top, bottom, left, right) are currently connected
-  const edges = useFlowStore(s => s.edges)
-
-  const connectedPositions = new Set<string>()
-  edges.forEach(e => {
-    if (e.source === nodeId && e.sourceHandle) connectedPositions.add(e.sourceHandle.replace('target-', ''))
-    if (e.target === nodeId && e.targetHandle) connectedPositions.add(e.targetHandle.replace('target-', ''))
-  })
-
-  const isPositionConnected = (handleId: string) => connectedPositions.has(handleId.replace('target-', ''))
-
   const getStyle = (handleId: string): React.CSSProperties => {
-    const connected = isPositionConnected(handleId)
-    // 흐름선 끝점 드래그 중엔 연결 여부와 무관하게 모든 포트 표시
-    const forceShow = isDraggingEdgeEndpoint
+    // 흐름선 끝점 드래그 중엔 포트 강조
+    const isDragging = isDraggingEdgeEndpoint
     return {
       width: 10,
       height: 10,
-      backgroundColor: selected ? '#3B82F6' : isDraggingEdgeEndpoint ? '#10B981' : '#64748B',
+      backgroundColor: selected ? '#3B82F6' : isDragging ? '#10B981' : '#64748B',
       border: '2px solid #FFFFFF',
-      opacity: (isVisible && (forceShow || !connected)) ? 1 : 0,
-      visibility: (!forceShow && connected) ? 'hidden' : 'visible',
+      opacity: isVisible ? 1 : 0,
       zIndex: 20,
     }
   }
 
   // Handle의 기본 CSS 클래스
-  // 흐름선 끝점 드래그 중엔 연결된 포트도 클릭 가능하게
   // Hit Area 확장을 위해 before: 요소 사용 (44x44px 영역 확보)
   const getClassName = (handleId: string) =>
-    `w-2.5 h-2.5 !min-w-[10px] !min-h-[10px] relative before:content-[''] before:absolute before:-inset-4 before:bg-transparent ${(isPositionConnected(handleId) && !isDraggingEdgeEndpoint) ? '!pointer-events-none' : ''}`
+    `w-2.5 h-2.5 !min-w-[10px] !min-h-[10px] relative before:content-[''] before:absolute before:-inset-4 before:bg-transparent`
 
-  // 드래그 중엔 연결 여부와 무관하게 모든 포트에 연결 허용
-  const isConn = (handleId: string) => isDraggingEdgeEndpoint ? true : !isPositionConnected(handleId)
+  // 모든 포트에 다중 연결 허용 (React Flow 기본 동작)
+  const isConn = (handleId: string) => true
 
   return (
     <>
