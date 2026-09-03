@@ -170,7 +170,7 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
                   transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 16}px)`,
                   pointerEvents: 'all',
                 }}
-                className="nodrag nopan select-none cursor-pointer"
+                className="nodrag nopan select-none cursor-pointer custom-edge-label"
                 onClick={(e) => { e.stopPropagation(); setIsPopupOpen(true) }}
                 title="클릭하여 라벨 수정"
               >

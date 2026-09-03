@@ -37,7 +37,7 @@ export async function getFlowchartDataUrl(canvasEl: HTMLElement, student: Studen
   viewportEl.style.transform = 'translate(0px, 0px) scale(1)'
   
   const viewportRect = viewportEl.getBoundingClientRect()
-  const elements = viewportEl.querySelectorAll('.react-flow__node, .react-flow__edge path.react-flow__edge-path, .react-flow__edge text, .react-flow__edge foreignObject, .react-flow__edge-label')
+  const elements = viewportEl.querySelectorAll('.react-flow__node, .react-flow__edge path.react-flow__edge-path, .custom-edge-label')
   
   if (elements.length === 0) {
     viewportEl.style.transform = originalTransform
