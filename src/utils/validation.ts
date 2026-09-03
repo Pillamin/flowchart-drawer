@@ -156,6 +156,82 @@ function checkMultipleOutgoing(nodes: FlowNode[], edges: FlowEdge[]): Validation
   return issues
 }
 
+function checkMissingOutgoing(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const nonEndNodes = nodes.filter(
+    n => n.type !== 'anchor' && n.type !== 'edge-node' && !(n.data.kind === 'terminal' && isEndLabel(n.data.label))
+  )
+
+  nonEndNodes.forEach(node => {
+    const outgoing = edges.filter(e => e.source === node.id)
+    if (outgoing.length === 0) {
+      issues.push({
+        id: `missing-outgoing-${node.id}`,
+        severity: 'error',
+        message: `"${node.data.label || '도형'}"에서 나가는 화살표가 없어요. 끝 도형이 아니라면 다음 단계로 연결해주세요!`,
+        nodeIds: [node.id],
+      })
+    }
+  })
+  return issues
+}
+
+function checkMissingIncoming(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  const nonStartNodes = nodes.filter(
+    n => n.type !== 'anchor' && n.type !== 'edge-node' && !(n.data.kind === 'terminal' && isStartLabel(n.data.label))
+  )
+
+  nonStartNodes.forEach(node => {
+    const incoming = edges.filter(e => e.target === node.id)
+    if (incoming.length === 0) {
+      issues.push({
+        id: `missing-incoming-${node.id}`,
+        severity: 'error',
+        message: `"${node.data.label || '도형'}"으로 들어오는 화살표가 없어요. 시작 도형이 아니라면 이전 단계에서 연결해주세요!`,
+        nodeIds: [node.id],
+      })
+    }
+  })
+  return issues
+}
+
+function checkInvalidTerminalEdges(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = []
+  
+  nodes.forEach(node => {
+    if (node.type === 'anchor' || node.type === 'edge-node') return
+    
+    if (node.data.kind === 'terminal') {
+      const isStart = isStartLabel(node.data.label)
+      const isEnd = isEndLabel(node.data.label)
+      
+      const incoming = edges.filter(e => e.target === node.id)
+      const outgoing = edges.filter(e => e.source === node.id)
+      
+      if (isStart && incoming.length > 0) {
+        issues.push({
+          id: `invalid-start-incoming-${node.id}`,
+          severity: 'error',
+          message: `시작 도형 "${node.data.label}"으로 들어오는 화살표가 있어요. 시작 도형은 흐름의 첫 출발점이어야 해요!`,
+          nodeIds: [node.id],
+        })
+      }
+      
+      if (isEnd && outgoing.length > 0) {
+        issues.push({
+          id: `invalid-end-outgoing-${node.id}`,
+          severity: 'error',
+          message: `끝 도형 "${node.data.label}"에서 나가는 화살표가 있어요. 끝 도형은 흐름의 마지막이어야 해요!`,
+          nodeIds: [node.id],
+        })
+      }
+    }
+  })
+  
+  return issues
+}
+
 function checkDisconnectedGraphs(nodes: FlowNode[], edges: FlowEdge[]): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const realNodes = nodes.filter(n => n.type !== 'anchor' && n.type !== 'edge-node')
@@ -214,6 +290,9 @@ export function validateFlow(nodes: FlowNode[], edges: FlowEdge[]): ValidationRe
     ...checkIncompleteEdges(nodes, edges),
     ...checkDecisionBranches(nodes, edges),
     ...checkMultipleOutgoing(nodes, edges),
+    ...checkMissingOutgoing(nodes, edges),
+    ...checkMissingIncoming(nodes, edges),
+    ...checkInvalidTerminalEdges(nodes, edges),
     ...checkDisconnectedGraphs(nodes, edges),
     ...checkEmptyLabels(nodes),
   ]
