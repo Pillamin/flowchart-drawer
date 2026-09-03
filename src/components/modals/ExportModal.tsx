@@ -289,7 +289,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                     <h2 className="text-lg font-extrabold border-l-4 border-blue-500 pl-2 mb-3">
                       1. 자연어 알고리즘
                     </h2>
-                    <div className="flex-1 text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 overflow-hidden bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div className="flex-1 text-sm font-medium whitespace-pre-wrap break-keep leading-relaxed text-slate-700 overflow-hidden bg-slate-50 p-4 rounded-lg border border-slate-200">
                       {generateAlgorithmText(algorithmSteps)}
                     </div>
                   </div>
@@ -374,7 +374,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, snaps
                       자연어 알고리즘
                     </h2>
                   </div>
-                  <div className={`text-sm font-medium whitespace-pre-wrap leading-relaxed text-slate-700 font-mono ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''} bg-slate-50 p-4 rounded-lg border border-slate-100`}>
+                  <div className={`text-sm font-medium whitespace-pre-wrap break-keep leading-relaxed text-slate-700 font-mono ${previewMode === 'FIT_PAGE' ? 'overflow-y-auto min-h-0 flex-1' : ''} bg-slate-50 p-4 rounded-lg border border-slate-100`}>
                     {generateAlgorithmText(algorithmSteps, student)}
                   </div>
                 </div>
