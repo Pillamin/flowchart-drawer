@@ -174,7 +174,7 @@ export const LabeledEdge: React.FC<EdgeProps> = memo(({
                 onClick={(e) => { e.stopPropagation(); setIsPopupOpen(true) }}
                 title="클릭하여 라벨 수정"
               >
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border transition-colors ${colorClass}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border transition-colors whitespace-nowrap ${colorClass}`}>
                   {labelStr}
                 </span>
               </div>
