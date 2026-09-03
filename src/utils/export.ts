@@ -5,7 +5,7 @@ import type { StudentInfo } from '../types'
 // unused imports removed
 const EXPORT_OPTIONS = {
   quality: 1,
-  pixelRatio: 4,
+  pixelRatio: 2,
   backgroundColor: '#F8FAFC',
 }
 
@@ -37,7 +37,7 @@ export async function getFlowchartDataUrl(canvasEl: HTMLElement, student: Studen
   viewportEl.style.transform = 'translate(0px, 0px) scale(1)'
   
   const viewportRect = viewportEl.getBoundingClientRect()
-  const elements = viewportEl.querySelectorAll('.react-flow__node, .react-flow__edge path.react-flow__edge-path')
+  const elements = viewportEl.querySelectorAll('.react-flow__node, .react-flow__edge path.react-flow__edge-path, .react-flow__edge text, .react-flow__edge foreignObject, .react-flow__edge-label')
   
   if (elements.length === 0) {
     viewportEl.style.transform = originalTransform
@@ -129,7 +129,7 @@ export async function exportPreviewDom(
 ): Promise<void> {
   const styleOptions: any = {
     quality: 1,
-    pixelRatio: 4,
+    pixelRatio: 2,
     backgroundColor: '#FFFFFF',
   }
   
