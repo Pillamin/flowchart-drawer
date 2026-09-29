@@ -10,6 +10,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   isSimActive?: boolean   // 시뮬레이션 중 현재 노드
   isSimVisited?: boolean  // 시뮬레이션 중 방문한 노드
   isAlgorithmHighlighted?: boolean // 자연어 알고리즘 하이라이트
+  isErrorFlashing?: boolean // 오류 발생 시 깜빡임 하이라이트
 }
 
 export interface AlgorithmStep {
@@ -35,6 +36,7 @@ export interface ValidationIssue {
   severity: ValidationSeverity
   message: string
   nodeIds?: string[]
+  edgeIds?: string[]
 }
 
 export interface ValidationResult {

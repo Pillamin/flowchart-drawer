@@ -3,16 +3,25 @@ import { NodeCard } from './NodeCard'
 import { ShapeTooltip } from './ShapeTooltip'
 import { NODE_KINDS_ORDER } from '../../constants/nodeConfig'
 import type { HelpTopic } from '../modals/HelpModal'
+import type { LegalType } from '../modals/LegalModal'
 
 interface SidebarProps {
   onOpenHelp?: (topic: HelpTopic) => void
+  onOpenLegalModal: (type: LegalType) => void
 }
 
 /** 좌측 도형 팔레트 사이드바 */
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp, onOpenLegalModal }) => {
   const onEdgeDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/flowchart-item-type', 'edge')
     e.dataTransfer.effectAllowed = 'move'
+
+    // 투명 드래그 이미지 설정
+    const img = new Image()
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    e.dataTransfer.setDragImage(img, 0, 0)
+
+    ;(window as any).__draggedItemType = 'edge'
   }, [])
   return (
     <aside
@@ -42,19 +51,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenHelp }) => {
               </marker>
             </defs>
             <line x1="6" y1="18" x2="96" y2="18" stroke="#64748B" strokeWidth="2" markerEnd="url(#sb-arrow)" />
-            <circle cx="6" cy="18" r="3.5" fill="#3B82F6" />
           </svg>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-text-primary leading-tight text-center">흐름선  Flow Line</span>
-            <ShapeTooltip kind="edge" onOpenHelp={onOpenHelp} />
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full">
+            <div></div>
+            <span className="text-xs font-bold text-text-primary leading-tight text-center">흐름선</span>
+            <div className="flex justify-start pl-1.5">
+              <ShapeTooltip kind="edge" onOpenHelp={onOpenHelp} />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-auto px-4 py-3 border-t border-slate-100">
+      <div className="mt-auto px-4 pt-3 pb-4 border-t border-slate-100 flex flex-col gap-4">
         <p className="text-[11px] text-text-placeholder leading-relaxed">
           💡 <strong>팁:</strong> 도형을 클릭하면 연결 포트가 나타나요. 포트에서 드래그해서 화살표를 연결해보세요!
         </p>
+        
+        <div className="flex flex-col items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs text-emerald-700 font-bold w-full justify-center">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="truncate">자동 저장 활성화됨</span>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium">
+            <button
+              onClick={() => onOpenLegalModal('terms')}
+              className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
+            >
+              이용약관
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => onOpenLegalModal('privacy')}
+              className="hover:text-slate-700 underline decoration-slate-300 transition-colors"
+            >
+              개인정보처리방침
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
   )

@@ -3,7 +3,6 @@ import { addEdge, applyNodeChanges, applyEdgeChanges, reconnectEdge, MarkerType 
 import type { NodeChange, EdgeChange, Connection } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import type { FlowNode, FlowEdge, StudentInfo, SimulationState, AlgorithmStep, NodeKind, StepKind } from '../types'
-import { DECISION_LABELS } from '../constants/nodeConfig'
 import { isStartLabel } from '../utils/graph'
 
 const STORAGE_KEY = 'flowchart-drawer-v3'
@@ -46,8 +45,10 @@ interface FlowStore {
   onConnect: (connection: Connection) => void
   onReconnect: (oldEdge: FlowEdge, newConnection: Connection) => void
   updateNodePosition: (id: string, position: { x: number; y: number }) => void
-  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, targetHandleId?: string) => void
+  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, snapHandleId?: string) => void
   updateNodeLabel: (id: string, label: string) => void
+  updateEdgeLabel: (id: string, label: string | null) => void
+  updateEdgeMidX: (id: string, midX: number | null) => void
   addNode: (node: FlowNode) => void
   removeNode: (id: string) => void
   removeEdge: (id: string) => void
@@ -61,6 +62,8 @@ interface FlowStore {
   setStudent: (info: Partial<StudentInfo>) => void
   updateSimulation: (sim: Partial<SimulationState>) => void
   resetSimulation: () => void
+  clearSimulationLog: () => void
+  flashErrorElements: (nodeIds: string[], edgeIds?: string[]) => void
   
   // Natural Language Algorithm Actions
   toggleAlgorithmPanel: () => void
@@ -101,22 +104,28 @@ function autoDetectKind(text: string, defaultKind: StepKind = 'process'): StepKi
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-function persistImmediately(nodes: FlowNode[], edges: FlowEdge[], student: StudentInfo) {
+function persistImmediately() {
   if (saveTimer) {
     clearTimeout(saveTimer)
     saveTimer = null
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, student }))
+    const state = useFlowStore.getState()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+      nodes: state.nodes, 
+      edges: state.edges, 
+      student: state.student,
+      algorithmSteps: state.algorithmSteps 
+    }))
   } catch {
     // Storage full or unavailable — silently ignore
   }
 }
 
-function persistToStorage(nodes: FlowNode[], edges: FlowEdge[], student: StudentInfo) {
+function persistToStorage(..._args: any[]) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    persistImmediately(nodes, edges, student)
+    persistImmediately()
   }, DEBOUNCE_MS)
 }
 
@@ -127,17 +136,22 @@ if (typeof window !== 'undefined') {
       saveTimer = null
       try {
         const state = useFlowStore.getState()
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes: state.nodes, edges: state.edges, student: state.student }))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+          nodes: state.nodes, 
+          edges: state.edges, 
+          student: state.student,
+          algorithmSteps: state.algorithmSteps 
+        }))
       } catch {}
     }
   })
 }
 
-function loadFromStorage(): Pick<FlowStore, 'nodes' | 'edges' | 'student'> | null {
+function loadFromStorage(): Pick<FlowStore, 'nodes' | 'edges' | 'student' | 'algorithmSteps'> | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Pick<FlowStore, 'nodes' | 'edges' | 'student'>
+    const parsed = JSON.parse(raw) as Pick<FlowStore, 'nodes' | 'edges' | 'student' | 'algorithmSteps'>
     if (parsed && Array.isArray(parsed.nodes)) {
       parsed.nodes = parsed.nodes.map(n => ({
         ...n,
@@ -206,8 +220,8 @@ function findMergeNode(
 const saved = loadFromStorage()
 
 export const useFlowStore = create<FlowStore>((set, get) => ({
-  nodes: [],
-  edges: [],
+  nodes: saved?.nodes ?? [],
+  edges: saved?.edges ?? [],
   past: [],
   future: [],
   pastAlgorithm: [],
@@ -282,12 +296,11 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
     if (finalSource === finalTarget) return // prevent self-loops
 
-    // 판단 노드에서 뽑을 때 자동 라벨 부여 (최초 source 기준으로 체크)
-    let label: string | undefined
+    // 판단 노드에서 뽑을 때 자동 라벨 부여 방지 및 팝업 대기 상태 (null) 로 설정
+    let label: string | null | undefined
     const originalSourceNode = nodes.find(n => n.id === finalSource)
     if (originalSourceNode?.data.kind === 'decision') {
-      const existingOutgoing = edges.filter(e => e.source === finalSource && !edgesToRemove.has(e.id))
-      label = existingOutgoing.length === 0 ? DECISION_LABELS.yes : DECISION_LABELS.no
+      label = null
     }
 
     const newEdge: FlowEdge = {
@@ -299,7 +312,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       type: 'labeled',
       reconnectable: true,
       markerEnd: { type: MarkerType.Arrow, width: 20, height: 20, color: '#64748B' },
-      ...(label ? { label, data: { isDecisionEdge: true } } : {}),
+      ...(label !== undefined ? { label, data: { isDecisionEdge: true } } : {}),
     }
 
     let updatedEdges = addEdge(newEdge, edges.filter(e => !edgesToRemove.has(e.id)))
@@ -355,7 +368,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     persistToStorage(nextNodes, edges, get().student)
   },
 
-  connectAnchorToNode: (anchorNodeId, targetNodeId, snapHandleId = 'top') => {
+  connectAnchorToNode: (anchorNodeId: string, targetNodeId: string, snapHandleId = 'top') => {
     const { nodes, edges, past } = get()
     // 앵커 노드와 연결되어 있던 엣지 찾기
     const connectedEdge = edges.find(e => e.source === anchorNodeId || e.target === anchorNodeId)
@@ -397,6 +410,29 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       past: pushCanvasHistory(past, nodes, edges),
       future: [],
     })
+    persistToStorage(get().nodes, get().edges, get().student)
+  },
+
+  updateEdgeLabel: (id, label) => {
+    const { nodes, edges, past } = get()
+    set({
+      edges: edges.map(e => e.id === id ? { ...e, label } : e),
+      past: pushCanvasHistory(past, nodes, edges),
+      future: [],
+    })
+    persistToStorage(get().nodes, get().edges, get().student)
+  },
+
+  updateEdgeMidX: (id, midX) => {
+    const { edges } = get()
+    set({
+      edges: edges.map(e =>
+        e.id === id
+          ? { ...e, data: { ...(e.data ?? {}), midX } }
+          : e
+      ),
+    })
+    // midX는 시각적 조정이므로 undo 스택 없이 즉시 persist만
     persistToStorage(get().nodes, get().edges, get().student)
   },
 
@@ -556,13 +592,13 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
   clearCanvas: () => {
     const { nodes, edges, past } = get()
     set({ nodes: [], edges: [], past: pushCanvasHistory(past, nodes, edges), future: [], student: DEFAULT_STUDENT })
-    persistImmediately([], [], DEFAULT_STUDENT)
+    persistImmediately()
   },
 
   loadTemplate: (nodes, edges) => {
     const { nodes: cur, edges: curE, past } = get()
     set({ nodes, edges, past: pushCanvasHistory(past, cur, curE), future: [] })
-    persistImmediately(nodes, edges, get().student)
+    persistImmediately()
   },
 
   setStudent: (info) => {
@@ -586,12 +622,35 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       edges: s.edges.map(e => ({ ...e, data: { ...e.data, isSimActive: false } })),
     }))
   },
+  clearSimulationLog: () => {
+    set(s => ({ simulation: { ...s.simulation, stepLog: [] } }))
+  },
+  flashErrorElements: (nodeIds, edgeIds = []) => {
+    set(s => ({
+      nodes: s.nodes.map(n => 
+        nodeIds.includes(n.id) ? { ...n, data: { ...n.data, isErrorFlashing: true } } : n
+      ),
+      edges: s.edges.map(e =>
+        edgeIds.includes(e.id) ? { ...e, data: { ...e.data, isErrorFlashing: true } } : e
+      )
+    }))
+    setTimeout(() => {
+      set(s => ({
+        nodes: s.nodes.map(n => 
+          nodeIds.includes(n.id) ? { ...n, data: { ...n.data, isErrorFlashing: false } } : n
+        ),
+        edges: s.edges.map(e =>
+          edgeIds.includes(e.id) ? { ...e, data: { ...e.data, isErrorFlashing: false } } : e
+        )
+      }))
+    }, 1000) // 1초간 깜빡임
+  },
 
   // ─── Natural Language Algorithm ──────────────────────────────────────────
   isAlgorithmPanelOpen: true,
   isAutoSyncEnabled: false,
   hoveredStepId: null,
-  algorithmSteps: [],
+  algorithmSteps: saved?.algorithmSteps ?? [],
 
   toggleAlgorithmPanel: () => set(s => ({ isAlgorithmPanelOpen: !s.isAlgorithmPanelOpen })),
   setAlgorithmPanelOpen: (open) => set({ isAlgorithmPanelOpen: open }),
@@ -742,18 +801,18 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
         if (step.id === id) {
           if (isDecision && step.kind !== 'decision') {
             changed = true
+            const existingYes = step.yesSteps || []
+            const existingNo = step.noSteps || []
             return {
               ...step,
               kind: 'decision',
-              yesSteps: step.yesSteps || [],
-              noSteps: step.noSteps || [],
+              yesSteps: existingYes.length > 0 ? existingYes : [{ id: `sub-${Date.now()}-y-${Math.random().toString(36).substr(2,4)}`, text: '', kind: 'process' as StepKind }],
+              noSteps: existingNo.length > 0 ? existingNo : [{ id: `sub-${Date.now()}-n-${Math.random().toString(36).substr(2,4)}`, text: '', kind: 'process' as StepKind }],
             }
           } else if (!isDecision && step.kind === 'decision') {
             changed = true
-            const nextStep = { ...step, kind: 'process' as StepKind }
-            delete nextStep.yesSteps
-            delete nextStep.noSteps
-            return nextStep
+            // 체크 해제 시 기존 작성 내용을 유지하기 위해 yesSteps, noSteps를 삭제하지 않음
+            return { ...step, kind: 'process' as StepKind }
           }
         }
         return {
@@ -1792,3 +1851,18 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     set({ algorithmSteps: extractedSteps })
   },
 }))
+
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    useFlowStore.subscribe((state, prevState) => {
+      if (
+        state.nodes !== prevState.nodes ||
+        state.edges !== prevState.edges ||
+        state.algorithmSteps !== prevState.algorithmSteps ||
+        state.student !== prevState.student
+      ) {
+        persistToStorage()
+      }
+    })
+  }, 0)
+}

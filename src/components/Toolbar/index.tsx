@@ -1,24 +1,26 @@
 import React from 'react'
-import { Button } from '../ui/Button'
 import { useFlowStore } from '../../store/flowStore'
+import { HeaderInputs } from './HeaderInputs'
 
 interface ToolbarProps {
   onValidateClick: () => void
   onSimulateClick: () => void
+  onExportClick: () => void
+  onClearAllClick?: () => void
+  isExportingSnapshot?: boolean
   onToggleSidebar?: () => void
   onToggleRightPanel?: () => void
 }
 
 /** 상단 툴바: 앱 타이틀 + 주요 액션 버튼들 */
-export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateClick, onToggleSidebar, onToggleRightPanel }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateClick, onExportClick, onClearAllClick, isExportingSnapshot, onToggleSidebar, onToggleRightPanel }) => {
   const simStatus = useFlowStore(s => s.simulation.status)
+  const isSimRunning = simStatus === 'running' || simStatus === 'waiting'
   const isAlgorithmPanelOpen = useFlowStore(s => s.isAlgorithmPanelOpen)
   const toggleAlgorithmPanel = useFlowStore(s => s.toggleAlgorithmPanel)
 
-  const isSimRunning = simStatus === 'running' || simStatus === 'waiting'
-
   return (
-    <header className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 h-14 bg-white border-b border-slate-200 shadow-2xs flex-shrink-0 z-10 whitespace-nowrap">
+    <header className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 h-14 bg-white border-b border-slate-300 shadow-2xs flex-shrink-0 z-10 whitespace-nowrap">
       
       {/* Mobile Sidebar Toggle */}
       {onToggleSidebar && (
@@ -32,13 +34,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateCli
       )}
 
       {/* Brand */}
-      <div className="flex items-center gap-1.5 mr-1 md:mr-3 flex-shrink-0">
+      <button 
+        onClick={() => window.location.reload()}
+        className="flex items-center gap-1.5 mr-1 md:mr-3 flex-shrink-0 cursor-pointer text-left outline-none"
+        title="새로고침"
+      >
         <span className="text-xl sm:text-2xl">🔷</span>
         <div className="hidden sm:block">
           <h1 className="text-xs sm:text-sm font-extrabold text-slate-800 leading-tight">Flowchart Drawer</h1>
           <p className="text-[10px] font-bold text-slate-400 leading-none">순서도 그리기</p>
         </div>
-      </div>
+      </button>
 
       <div className="hidden sm:block w-px h-6 bg-slate-200 mx-0.5 flex-shrink-0" />
 
@@ -79,29 +85,65 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onValidateClick, onSimulateCli
 
       <div className="flex-1 min-w-[8px]" />
 
-      {/* Validate (검사하기 - 테스트 블록과 동일한 Primary UI 스타일 적용) */}
-      <Button
-        id="btn-validate"
-        variant="primary"
-        size="sm"
-        onClick={onValidateClick}
-        icon={<span className="text-sm">🔍</span>}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs font-bold text-xs px-2.5 py-1.5 flex-shrink-0"
-      >
-        <span className="inline">검사하기</span>
-      </Button>
+      {/* Center Inputs */}
+      <div className="hidden lg:flex max-w-3xl flex-1 mx-2">
+        <HeaderInputs />
+      </div>
+      
+      <div className="flex-1 min-w-[8px]" />
 
-      {/* Simulate (실행 해보기) */}
-      <Button
-        id="btn-simulate"
-        variant={isSimRunning ? 'danger' : 'primary'}
-        size="sm"
-        onClick={onSimulateClick}
-        icon={<span className="text-sm">{isSimRunning ? '⏹' : '▶'}</span>}
-        className={!isSimRunning ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-2xs font-bold text-xs px-2.5 py-1.5 flex-shrink-0' : 'font-bold text-xs px-2.5 py-1.5 flex-shrink-0'}
-      >
-        <span className="inline">{isSimRunning ? '시뮬레이션 중지' : '실행 해보기'}</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        {/* Clear All (전체 초기화) */}
+        {onClearAllClick && (
+          <button
+            onClick={onClearAllClick}
+            className="h-9 px-3 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-sm font-extrabold cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
+            title="자연어, 순서도, 디버깅 결과를 모두 지우기"
+          >
+            <span className="text-sm">🗑</span>
+            <span className="hidden xl:inline">지우기</span>
+          </button>
+        )}
+
+        {/* Validate (검사하기) */}
+        <button
+          id="btn-validate"
+          onClick={onValidateClick}
+          className="h-9 px-3 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors text-sm font-extrabold cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
+        >
+          <span className="text-sm">🔍</span>
+          <span className="hidden xl:inline">검사하기</span>
+        </button>
+
+        {/* Simulate (실행 해보기) */}
+        <button
+          id="btn-simulate"
+          onClick={onSimulateClick}
+          className={`h-9 px-3 rounded-lg border transition-colors text-sm font-extrabold cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0 ${
+            isSimRunning 
+              ? 'bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200' 
+              : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200'
+          }`}
+        >
+          <span className="text-sm">{isSimRunning ? '⏹' : '▶'}</span>
+          <span className="hidden xl:inline">{isSimRunning ? '시뮬레이션 중지' : '실행해보기'}</span>
+        </button>
+
+        {/* Export (내보내기) */}
+        <button
+          onClick={onExportClick}
+          disabled={isExportingSnapshot}
+          className={`h-9 px-3 rounded-lg border transition-colors text-sm font-extrabold cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0 ${
+            isExportingSnapshot
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+              : 'bg-violet-100 text-violet-800 hover:bg-violet-200 border-violet-200'
+          }`}
+          title="내보내기"
+        >
+          <span className="text-sm">{isExportingSnapshot ? '⏳' : '📤'}</span> 
+          <span className="hidden xl:inline">{isExportingSnapshot ? '준비중...' : '내보내기'}</span>
+        </button>
+      </div>
 
       {/* Mobile RightPanel Toggle */}
       {onToggleRightPanel && (

@@ -21,8 +21,27 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
 
   const isActive = data.isSimActive
   const isVisited = data.isSimVisited
+  const isErrorFlashing = data.isErrorFlashing
 
   useEffect(() => { setDraft(data.label) }, [data.label])
+
+  useEffect(() => {
+    if ((data as any).isNew) {
+      setEditing(true)
+      setTimeout(() => { inputRef.current?.select() }, 50)
+      if (typeof (data as any).isNew !== 'undefined') {
+         delete (data as any).isNew
+      }
+    }
+  }, [data])
+
+  // Textarea 자동 높이 조절
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.style.height = '0px'
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px'
+    }
+  }, [draft, editing])
 
   const commitEdit = useCallback(() => {
     setEditing(false)
@@ -42,7 +61,9 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label) }
   }, [commitEdit, data.label])
 
-  const borderColor = isActive
+  const borderColor = isErrorFlashing
+    ? '#EF4444'
+    : isActive
     ? '#FBBF24'
     : isVisited
     ? '#10B981'
@@ -65,9 +86,9 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
 
     if (totalLen > 36 || lineCount >= 4 || maxLineLen > 18) return 'text-[11px] leading-tight font-bold'
     if (totalLen > 22 || lineCount >= 3 || maxLineLen > 12) return 'text-[12.5px] leading-tight font-bold'
-    if (totalLen > 12 || lineCount >= 2 || maxLineLen > 8) return 'text-[14.5px] leading-tight font-bold'
-    if (totalLen > 6) return 'text-[17px] leading-snug font-extrabold'
-    return 'text-[20px] sm:text-[21px] leading-snug font-black tracking-tight'
+    
+    // 기본 크기를 두 줄(약 14.5px)에 맞춤
+    return 'text-[14.5px] leading-tight font-bold'
   }
 
   return (
@@ -87,9 +108,11 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
           points={`${SKEW},0 ${W},0 ${W - SKEW},${H} 0,${H}`}
           fill={config.colors.bg}
           stroke={borderColor}
-          strokeWidth={2.5}
+          strokeWidth={isErrorFlashing ? 4 : 2.5}
           style={{
-            filter: selected
+            filter: isErrorFlashing
+              ? 'drop-shadow(0 0 12px rgba(239,68,68,0.6))'
+              : selected
               ? `drop-shadow(0 0 0 3px ${borderColor}44) drop-shadow(0 4px 12px rgba(0,0,0,0.12))`
               : isActive
               ? 'drop-shadow(0 0 6px #FBBF2488)'
@@ -109,14 +132,15 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
         {editing ? (
           <textarea
             ref={inputRef}
-            rows={Math.max(1, draft.split('\n').length)}
+            rows={1}
             value={draft}
+            placeholder={config.placeholder}
             onChange={e => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={onKeyDown}
             onMouseDown={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
-            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text ${getFontSizeClass(draft)}`}
+            className={`nodrag nopan w-full bg-transparent text-center font-bold resize-none outline-none border-none p-0 m-0 select-text pointer-events-auto cursor-text overflow-hidden ${getFontSizeClass(draft || config.placeholder)}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -128,7 +152,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
           />
         ) : (
           <div
-            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label)}`}
+            className={`w-full text-center font-bold select-none cursor-grab flex items-center justify-center ${getFontSizeClass(data.label || config.placeholder)} ${!data.label ? 'opacity-50' : ''}`}
             style={{
               color: config.colors.text,
               fontFamily: '"Nanum Square Round", sans-serif',
@@ -137,7 +161,7 @@ export const IONode: React.FC<NodeProps & { data: FlowNodeData }> = memo(({ id, 
               whiteSpace: 'pre-wrap',
             }}
           >
-            {data.label}
+            {data.label || config.placeholder}
           </div>
         )}
       </div>

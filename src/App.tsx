@@ -7,9 +7,9 @@ import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
 import { ClearModal } from './components/modals/ClearModal'
 import { ClearAlgorithmModal } from './components/modals/ClearAlgorithmModal'
+import { ClearAllModal } from './components/modals/ClearAllModal'
 import { TemplateModal } from './components/modals/TemplateModal'
-import { ValidationModal } from './components/modals/ValidationModal'
-import { SimulationPanel } from './components/modals/SimulationPanel'
+import { ExportModal } from './components/modals/ExportModal'
 import { HelpModal, type HelpTopic } from './components/modals/HelpModal'
 import { LegalModal, type LegalType } from './components/modals/LegalModal'
 import { useFlowStore } from './store/flowStore'
@@ -51,8 +51,11 @@ const AppInner: React.FC = () => {
 
   const [showClear, setShowClear] = useState(false)
   const [showAlgorithmClear, setShowAlgorithmClear] = useState(false)
+  const [showClearAll, setShowClearAll] = useState(false)
   const [showTemplate, setShowTemplate] = useState(false)
-  const [showValidation, setShowValidation] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportSnapshot, setExportSnapshot] = useState<string | null>(null)
+  const [isExportingSnapshot, setIsExportingSnapshot] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null)
   const [legalType, setLegalType] = useState<LegalType | null>(null)
@@ -60,6 +63,9 @@ const AppInner: React.FC = () => {
   // Mobile responsive states
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [isMobileRightPanelOpen, setMobileRightPanelOpen] = useState(false)
+  
+  // Desktop panel states
+  const [isDesktopRightPanelCollapsed, setIsDesktopRightPanelCollapsed] = useState(true)
 
   // Hooks
   useUndoRedo()
@@ -70,22 +76,47 @@ const AppInner: React.FC = () => {
   const future = useFlowStore(s => s.future)
   const undo = useFlowStore(s => s.undo)
   const redo = useFlowStore(s => s.redo)
+  const nodes = useFlowStore(s => s.nodes)
+  const student = useFlowStore(s => s.student)
 
   const handleValidate = useCallback(() => {
+    setIsDesktopRightPanelCollapsed(false)
+    resetSimulation()
     const result = validate()
     setValidationResult(result)
-    setShowValidation(true)
-  }, [validate])
+  }, [validate, resetSimulation])
 
   const handleSimulate = useCallback(() => {
+    setIsDesktopRightPanelCollapsed(false)
     const isRunning = simStatus === 'running' || simStatus === 'waiting'
     if (isRunning) {
       stopSim()
     } else {
+      setValidationResult(null)
       resetSimulation()
       startSim()
     }
   }, [simStatus, startSim, stopSim, resetSimulation])
+
+  const handleClearAllConfirm = useCallback(() => {
+    clearAlgorithmSteps()
+    clearCanvas()
+    resetSimulation()
+    setValidationResult(null)
+  }, [clearAlgorithmSteps, clearCanvas, resetSimulation, setValidationResult])
+
+  const handleExportClick = async () => {
+    if (!canvasRef.current) return
+    setIsExportingSnapshot(true)
+    try {
+      const { getFlowchartDataUrl } = await import('./utils/export')
+      const url = await getFlowchartDataUrl(canvasRef.current, student)
+      setExportSnapshot(url)
+      setShowExportModal(true)
+    } finally {
+      setIsExportingSnapshot(false)
+    }
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas font-sans relative">
@@ -93,6 +124,9 @@ const AppInner: React.FC = () => {
       <Toolbar
         onValidateClick={handleValidate}
         onSimulateClick={handleSimulate}
+        onExportClick={handleExportClick}
+        onClearAllClick={() => setShowClearAll(true)}
+        isExportingSnapshot={isExportingSnapshot}
         onToggleSidebar={() => {
           setMobileSidebarOpen(prev => !prev)
           setMobileRightPanelOpen(false)
@@ -121,13 +155,15 @@ const AppInner: React.FC = () => {
         {/* Flowchart Container (Sidebar + Canvas + Header) */}
         <div className="flex flex-1 flex-col relative min-w-0">
           {/* Flowchart Header */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-2">
+          <div className="flex items-center justify-between px-3.5 border-b border-slate-200 bg-slate-50/90 flex-shrink-0 gap-2 h-[52px]">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xl flex-shrink-0">🔲</span>
               <div className="min-w-0">
                 <h2 className="text-sm font-bold text-slate-800 leading-tight truncate">순서도 알고리즘</h2>
               </div>
             </div>
+            
+            {/* Left Tools */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
                 <button onClick={undo} disabled={past.length === 0} className="w-8 h-7 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent text-sm font-bold transition-colors flex items-center justify-center cursor-pointer" title="실행 취소"><span>↩</span></button>
@@ -137,8 +173,8 @@ const AppInner: React.FC = () => {
               <button onClick={() => { fitView({ padding: 0.15, duration: 400 }) }} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="화면에 맞추기">
                 <span className="text-xs">⊡</span><span className="hidden sm:inline">전체보기</span>
               </button>
-              <button onClick={() => setShowClear(true)} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="캔버스 초기화">
-                <span className="text-xs">🗑</span><span className="hidden sm:inline">초기화</span>
+              <button onClick={() => setShowClear(true)} disabled={nodes.length === 0} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-slate-600 disabled:hover:border-slate-200 rounded-lg transition-colors text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5" title="캔버스 지우기">
+                <span className="text-xs">🗑</span><span className="hidden sm:inline">지우기</span>
               </button>
             </div>
           </div>
@@ -147,7 +183,7 @@ const AppInner: React.FC = () => {
           <div className="flex flex-1 overflow-hidden relative">
             {/* Sidebar Wrapper */}
             <div className={`transition-transform transform md:translate-x-0 absolute md:relative z-40 h-full ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
-              <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} />
+              <Sidebar onOpenHelp={(topic) => setHelpTopic(topic)} onOpenLegalModal={(type) => setLegalType(type)} />
             </div>
 
             <Canvas canvasRef={canvasRef} />
@@ -158,8 +194,11 @@ const AppInner: React.FC = () => {
         <div className={`transition-transform transform md:translate-x-0 absolute right-0 md:relative z-40 h-full ${isMobileRightPanelOpen ? 'translate-x-0' : 'translate-x-full md:block'}`}>
           <RightPanel
             canvasRef={canvasRef}
+            isCollapsed={isDesktopRightPanelCollapsed}
+            onToggleCollapse={() => setIsDesktopRightPanelCollapsed(prev => !prev)}
             onTemplateClick={() => setShowTemplate(true)}
-            onOpenLegalModal={(type) => setLegalType(type)}
+            validationResult={validationResult}
+            onClearValidation={() => setValidationResult(null)}
           />
         </div>
       </div>
@@ -175,18 +214,22 @@ const AppInner: React.FC = () => {
         onClose={() => setShowAlgorithmClear(false)}
         onConfirm={clearAlgorithmSteps}
       />
+      <ClearAllModal
+        isOpen={showClearAll}
+        onClose={() => setShowClearAll(false)}
+        onConfirm={handleClearAllConfirm}
+      />
       <TemplateModal
         isOpen={showTemplate}
         onClose={() => setShowTemplate(false)}
       />
-      <ValidationModal
-        isOpen={showValidation}
-        onClose={() => setShowValidation(false)}
-        result={validationResult}
-      />
-
-      {/* Simulation overlay panel */}
-      <SimulationPanel />
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          snapshotUrl={exportSnapshot}
+        />
+      )}
 
       {/* Help Modal */}
       <HelpModal

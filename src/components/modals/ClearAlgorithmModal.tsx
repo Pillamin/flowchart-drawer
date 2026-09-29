@@ -9,7 +9,7 @@ interface ClearAlgorithmModalProps {
 }
 
 export const ClearAlgorithmModal: React.FC<ClearAlgorithmModalProps> = ({ isOpen, onClose, onConfirm }) => (
-  <Modal isOpen={isOpen} onClose={onClose} title="🗑 자연어 알고리즘 초기화">
+  <Modal isOpen={isOpen} onClose={onClose} title="🗑 자연어 알고리즘 지우기">
     <div className="flex flex-col gap-4">
       <p className="text-sm text-text-primary leading-relaxed">
         작성하신 자연어 알고리즘 단계들이 모두 지워져요.<br />
@@ -18,7 +18,7 @@ export const ClearAlgorithmModal: React.FC<ClearAlgorithmModalProps> = ({ isOpen
       <div className="flex gap-2 justify-end">
         <Button id="btn-alg-clear-cancel" variant="secondary" onClick={onClose}>취소</Button>
         <Button id="btn-alg-clear-confirm" variant="danger" onClick={() => { onConfirm(); onClose() }}>
-          초기화하기
+          지우기
         </Button>
       </div>
     </div>
